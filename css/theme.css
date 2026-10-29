@@ -5,38 +5,43 @@
     /* Typography */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
-    /* Core Palette Tokens */
-    --color-sidebar: #03281A;
-    --color-brand-green: #0B3D2E;
-    --color-brand-green-hover: #134e3a;
-    --color-brand-green-light: #E8F5ED;
-    --color-bg: #F8FAFC;
-    --color-card: #FFFFFF;
-    --color-border: #E2E8F0;
-    --color-text: #0F172A;
-    --color-muted: #64748B;
+    /* Core Palette Tokens: Restrained Forest Green & Warm Parchment */
+    --color-sidebar: #0e241a;
+    --color-brand-green: #1b4931;
+    --color-brand-green-hover: #143b27;
+    --color-brand-green-light: #eef5f0;
+    --color-brand-green-subtle: #dbebe0;
+    --color-bg: #fbfaf6;
+    --color-card: #ffffff;
+    --color-card-subtle: #f5f3ec;
+    --color-border: #e3ded4;
+    --color-border-subtle: #eae6dc;
+    --color-text: #141f18;
+    --color-muted: #57695e;
+    --color-muted-light: #8a9c91;
 
     /* Risk Colour Tokens */
-    --color-risk-safe: #16A34A;
-    --color-risk-safe-bg: #DCFCE7;
-    --color-risk-safe-border: #BBF7D0;
+    --color-risk-safe: #167a3f;
+    --color-risk-safe-bg: #eaf6ee;
+    --color-risk-safe-border: #bce3cb;
 
-    --color-risk-medium: #D97706;
-    --color-risk-medium-bg: #FEF3C7;
-    --color-risk-medium-border: #FDE68A;
+    --color-risk-medium: #b45309;
+    --color-risk-medium-bg: #fef7ea;
+    --color-risk-medium-border: #f8dfa9;
 
-    --color-risk-high: #EA580C;
-    --color-risk-high-bg: #FFEDD5;
-    --color-risk-high-border: #FED7AA;
+    --color-risk-high: #c2410c;
+    --color-risk-high-bg: #fff3ee;
+    --color-risk-high-border: #fbc6b0;
 
-    --color-risk-critical: #DC2626;
-    --color-risk-critical-bg: #FEE2E2;
-    --color-risk-critical-border: #FECACA;
+    --color-risk-critical: #b91c1c;
+    --color-risk-critical-bg: #fef2f2;
+    --color-risk-critical-border: #fecaca;
 
-    /* Radius Tokens */
-    --radius-default: 10px;
-    --radius-select: 8px;
-    --radius-badge: 9999px;
+    /* Radius Tokens: Crisp, purposeful (No oversized pills) */
+    --radius-default: 6px;
+    --radius-select: 6px;
+    --radius-badge: 4px;
+    --radius-card: 6px;
 
     /* Spacing Scale Tokens: 4, 8, 12, 16, 24, 32 */
     --space-4: 4px;
@@ -47,8 +52,8 @@
     --space-32: 32px;
 
     /* Elevation */
-    --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+    --shadow-sm: 0 1px 2px 0 rgba(20, 31, 24, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(20, 31, 24, 0.06), 0 2px 4px -2px rgba(20, 31, 24, 0.04);
 
     /* Dimensions */
     --sidebar-width: 260px;
@@ -758,3 +763,208 @@ html, body {
         padding: var(--space-16);
     }
 }
+
+/* ========================================================
+   Specialized Agricultural IoT & Optical Inspection Styles
+   ======================================================== */
+
+/* Monospace numeric & technical tabular font */
+.font-mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 6-Step Workflow Progression Track */
+.inspection-workflow-bar {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    padding: 10px 14px;
+    gap: 8px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+
+.workflow-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-muted);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+.workflow-step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    background: #eae6dd;
+    color: var(--color-muted);
+}
+
+.workflow-step.active {
+    color: var(--color-brand-green);
+    background: var(--color-brand-green-light);
+}
+
+.workflow-step.active .workflow-step-num {
+    background: var(--color-brand-green);
+    color: #ffffff;
+}
+
+.workflow-step.completed {
+    color: var(--color-text);
+}
+
+.workflow-step.completed .workflow-step-num {
+    background: var(--color-risk-safe);
+    color: #ffffff;
+}
+
+.workflow-arrow {
+    color: var(--color-border);
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+}
+
+/* Optical Camera Chamber Viewport */
+.optical-chamber {
+    background: #0b1410;
+    min-height: 440px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    border-top: 1px solid #1a2c22;
+}
+
+.optical-chamber video,
+.optical-chamber canvas,
+.optical-chamber img {
+    max-width: 100%;
+    max-height: 480px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Chamber Reticle & Sample Boundary Guide */
+.chamber-reticle {
+    position: absolute;
+    inset: 20px;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    pointer-events: none;
+    border-radius: 4px;
+}
+
+.chamber-reticle::before,
+.chamber-reticle::after {
+    content: "";
+    position: absolute;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.chamber-reticle::before {
+    top: 50%;
+    left: calc(50% - 15px);
+    width: 30px;
+    height: 1px;
+}
+
+.chamber-reticle::after {
+    left: 50%;
+    top: calc(50% - 15px);
+    height: 30px;
+    width: 1px;
+}
+
+/* Chamber Status Pill */
+.chamber-status-tag {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(11, 20, 16, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #e2ded4;
+    z-index: 5;
+}
+
+/* UV Eye Safety & Hardware Banner */
+.uv-safety-card {
+    background: #fffdf5;
+    border: 1px solid #fae8b4;
+    border-left: 4px solid #d97706;
+    padding: 12px 16px;
+    border-radius: var(--radius-card);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+/* Agricultural Inspection Data Table */
+.inspection-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+}
+
+.inspection-table th {
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-muted);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-card-subtle);
+}
+
+.inspection-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    color: var(--color-text);
+}
+
+.inspection-table tr:last-child td {
+    border-bottom: none;
+}
+
+.inspection-table tr:hover td {
+    background-color: #faf8f2;
+}
+
+/* Technical Status Dot */
+.tech-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.tech-dot.online { background-color: var(--color-risk-safe); }
+.tech-dot.warning { background-color: var(--color-risk-medium); }
+.tech-dot.critical { background-color: var(--color-risk-critical); }
+.tech-dot.offline { background-color: #8a9c91; }
+

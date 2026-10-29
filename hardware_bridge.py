@@ -146,13 +146,32 @@ def generate_fake_scan_image():
 
 class BridgeState:
     """Maintains realistic drifting telemetry state for storage units."""
-    def __init__(self):
+    def __init__(self, api_url=None):
         self.units = [
             {"id": 1, "grain": "wheat", "temp": 26.2, "hum": 61.5, "gas": 125, "moist": 13.4},
             {"id": 2, "grain": "maize", "temp": 27.5, "hum": 64.0, "gas": 140, "moist": 14.1},
-            {"id": 3, "grain": "groundnut", "temp": 23.8, "hum": 59.2, "gas": 112, "moist": 7.8},
-            {"id": 4, "grain": "maize", "temp": 28.0, "hum": 66.5, "gas": 155, "moist": 14.8}
+            {"id": 3, "grain": "groundnut", "temp": 23.8, "hum": 59.2, "gas": 112, "moist": 7.8}
         ]
+        if api_url:
+            try:
+                r = requests.get(f"{api_url}/api/storage-units", timeout=3.0)
+                if r.status_code == 200:
+                    data = r.json()
+                    backend_units = data.get("storage_units", [])
+                    if backend_units:
+                        self.units = [
+                            {
+                                "id": u["id"],
+                                "grain": u.get("grain_type", "wheat"),
+                                "temp": round(25.0 + random.uniform(-2, 3), 1),
+                                "hum": round(60.0 + random.uniform(-4, 4), 1),
+                                "gas": int(120 + random.randint(-15, 20)),
+                                "moist": round(13.0 + random.uniform(-1, 2), 1)
+                            }
+                            for u in backend_units
+                        ]
+            except Exception:
+                pass
         self.cycle_count = 0
 
     def step_telemetry(self, unit_id=1):
@@ -185,7 +204,7 @@ def run_simulation_mode(config, loop_delay=5.0, max_iterations=None):
     print("  * Contract    : {\"storage_unit_id\":1,\"grain_type\":\"wheat\",\"temperature\":28.5,\"humidity\":62.0,\"gas_index\":412,\"moisture\":13.2}")
     print("=======================================================\n")
 
-    state = BridgeState()
+    state = BridgeState(config.get("API_URL"))
     iteration = 0
 
     while True:

@@ -272,11 +272,11 @@ async function postContaminationScan(unitId, imageFile) {
             headers: getAuthHeaders(),
             body: formData
         });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return await response.json();
+        const data = await safeParseJson(response);
+        return { ok: response.ok, status: response.status, data };
     } catch (error) {
         console.error("Error running contamination scan:", error);
-        return null;
+        return { ok: false, status: 500, data: { status: "error", message: "Network error submitting scan to backend." } };
     }
 }
 

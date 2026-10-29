@@ -344,18 +344,39 @@
             const ageLabel = document.getElementById("controller-age-label");
             const readingAgeElem = document.getElementById("sys-reading-age");
 
-            const ageSeconds = Math.floor((Date.now() - lastReadingTimestamp) / 1000);
+            if (!lastReadingTimestamp) {
+                if (chip) chip.className = "status-chip offline";
+                if (statusText) statusText.textContent = "Offline (No data)";
+                if (ageLabel) ageLabel.textContent = "Age: --";
+                if (readingAgeElem) readingAgeElem.textContent = "No readings";
+                return;
+            }
 
-            if (ageLabel) ageLabel.textContent = `Age: ${ageSeconds}s`;
-            if (readingAgeElem) readingAgeElem.textContent = ageSeconds < 2 ? "Just now" : `${ageSeconds}s ago`;
+            const ageSeconds = Math.max(0, Math.floor((Date.now() - lastReadingTimestamp) / 1000));
+            let ageDisplay = "";
+            if (ageSeconds < 60) {
+                ageDisplay = `${ageSeconds}s ago`;
+            } else if (ageSeconds < 3600) {
+                const m = Math.floor(ageSeconds / 60);
+                ageDisplay = `${m}m ago`;
+            } else if (ageSeconds < 86400) {
+                const h = Math.floor(ageSeconds / 3600);
+                ageDisplay = `${h}h ago`;
+            } else {
+                const d = Math.floor(ageSeconds / 86400);
+                ageDisplay = `${d}d ago`;
+            }
 
-            // Requirement 3: Controller Connected if last reading age < 15s, otherwise Offline
-            if (ageSeconds < 15) {
+            if (ageLabel) ageLabel.textContent = `Age: ${ageDisplay}`;
+            if (readingAgeElem) readingAgeElem.textContent = ageSeconds < 15 ? "Just now" : ageDisplay;
+
+            // Connected if last reading age < 60s, otherwise Stale / Offline
+            if (ageSeconds < 60) {
                 if (chip) chip.className = "status-chip live";
-                if (statusText) statusText.textContent = "Connected";
+                if (statusText) statusText.textContent = "Connected (Live)";
             } else {
                 if (chip) chip.className = "status-chip offline";
-                if (statusText) statusText.textContent = "Offline";
+                if (statusText) statusText.textContent = "Offline (Stale telemetry)";
             }
         }
 
@@ -382,7 +403,6 @@
         async function fetchStorageMonitoringData() {
             const unitId = GrainState.getSelectedUnitId();
             const grain = GrainState.getSelectedGrain();
-            const isSimulate = GrainState.isSimulateMode();
 
             const sysUnitTag = document.getElementById("system-unit-tag");
             if (sysUnitTag) sysUnitTag.textContent = unitId ? `Unit #${unitId} (${grain})` : `No Unit (${grain})`;
@@ -429,38 +449,40 @@
                 console.warn("Error fetching readings:", e);
             }
 
-            // Fallback for simulate mode
-            if (!summary && isSimulate) {
-                summary = {
-                    storage_unit: { id: unitId, location: `Silo A-1 (${grain})`, grain_type: grain.toLowerCase() },
-                    latest_sensor_reading: {
-                        temperature: 24.5,
-                        humidity: 58.2,
-                        gas_index: 95,
-                        moisture: 13.1,
-                        timestamp: "Today, 11:00 AM"
-                    }
-                };
-            }
-
-            if (readings.length === 0 && isSimulate) {
-                readings = generateSimulatedReadings(unitId, 20);
-            }
-
-            const latestReading = summary ? summary.latest_sensor_reading : (readings.length > 0 ? readings[0] : null);
+            const latestReading = (summary && summary.latest_sensor_reading) 
+                ? summary.latest_sensor_reading 
+                : (readings.length > 0 ? readings[0] : null);
 
             if (!latestReading) {
                 renderEmptyCards();
                 renderLogsTable([]);
+                const chip = document.getElementById("controller-chip");
+                const statusText = document.getElementById("controller-status-text");
+                if (chip) chip.className = "status-chip offline";
+                if (statusText) statusText.textContent = "No Readings";
                 return;
             }
 
-            lastReadingTimestamp = Date.now();
-            lastRawGasReading = latestReading.gas_index !== undefined ? latestReading.gas_index : 75;
+            // Parse timestamp accurately
+            if (latestReading.timestamp) {
+                const parsedDate = new Date(String(latestReading.timestamp).replace(" ", "T"));
+                if (!isNaN(parsedDate.getTime())) {
+                    lastReadingTimestamp = parsedDate.getTime();
+                } else {
+                    lastReadingTimestamp = Date.now();
+                }
+            } else {
+                lastReadingTimestamp = 0;
+            }
+
+            lastRawGasReading = (latestReading.gas_index !== undefined && latestReading.gas_index !== null) 
+                ? latestReading.gas_index 
+                : null;
 
             // Update System Status Card details
-            const timeStr = latestReading.timestamp || "Just now";
-            document.getElementById("sys-last-reading-time").textContent = timeStr;
+            const timeStr = latestReading.timestamp || "Recent";
+            const sysTime = document.getElementById("sys-last-reading-time");
+            if (sysTime) sysTime.textContent = timeStr;
             updateControllerStatusAge();
 
             // Populate the 4 Cards in one row with threshold-based colors
@@ -469,7 +491,7 @@
             updateCardMetric("gas", lastRawGasReading, "", grain, "gas");
             updateCardMetric("moisture", latestReading.moisture, "%", grain, "moisture");
 
-            // Populate Recent Sensor Logs table (last 20 readings, newest first, Time, Temp, Humidity, Gas Index, Moisture)
+            // Populate Recent Sensor Logs table (last 20 readings, newest first)
             renderLogsTable(readings);
         }
 
@@ -479,38 +501,68 @@
             const dot = document.getElementById(`dot-${cardKey}`);
             const statusBadge = document.getElementById(`status-${cardKey}`);
 
-            if (val === null || val === undefined) {
-                valElem.innerHTML = `-<span class="metric-unit">${unitSuffix}</span>`;
+            if (val === null || val === undefined || isNaN(val)) {
+                if (valElem) valElem.innerHTML = `--<span class="metric-unit" style="font-size: 18px; font-weight: 500; color: var(--color-muted); margin-left: 2px;">${unitSuffix}</span>`;
+                if (card) card.style.borderLeft = "4px solid var(--color-border)";
+                if (dot) dot.style.backgroundColor = "var(--color-border)";
+                if (statusBadge) {
+                    statusBadge.textContent = "Unavailable";
+                    statusBadge.className = "risk-badge";
+                    statusBadge.style.color = "var(--color-muted)";
+                    statusBadge.style.border = "1px solid var(--color-border)";
+                    statusBadge.style.background = "#F1F5F9";
+                }
                 return;
             }
 
-            const evalResult = evaluateThreshold(metricThresholdKey, val, grain);
+            const evalResult = evaluateThreshold(metricThresholdKey, Number(val), grain);
 
             // Update card border color
-            card.style.borderLeft = `4px solid ${evalResult.color}`;
+            if (card) card.style.borderLeft = `4px solid ${evalResult.color}`;
 
             // Update status dot
-            dot.style.backgroundColor = evalResult.color;
+            if (dot) dot.style.backgroundColor = evalResult.color;
 
             // Update status badge
-            statusBadge.textContent = evalResult.level;
-            statusBadge.className = `risk-badge ${evalResult.badgeClass}`;
-            statusBadge.style.color = evalResult.color;
+            if (statusBadge) {
+                statusBadge.textContent = evalResult.level;
+                statusBadge.className = `risk-badge ${evalResult.badgeClass}`;
+                statusBadge.style.color = evalResult.color;
+                statusBadge.style.border = "";
+                statusBadge.style.background = "";
+            }
 
-            // Update value text (baseline-relative index)
+            // Update value text (distinguish 0 from null)
             if (unitSuffix) {
-                valElem.innerHTML = `${val}<span class="metric-unit" style="font-size: 18px; font-weight: 500; color: var(--color-muted); margin-left: 2px;">${unitSuffix}</span>`;
+                if (valElem) valElem.innerHTML = `${val}<span class="metric-unit" style="font-size: 18px; font-weight: 500; color: var(--color-muted); margin-left: 2px;">${unitSuffix}</span>`;
             } else {
-                valElem.textContent = val;
+                if (valElem) valElem.textContent = val;
             }
         }
 
         function renderEmptyCards() {
             ["temp", "humidity", "gas", "moisture"].forEach(key => {
                 const valElem = document.getElementById(`val-${key}`);
-                if (valElem) valElem.textContent = "-";
+                const statusBadge = document.getElementById(`status-${key}`);
+                const dot = document.getElementById(`dot-${key}`);
+                const card = document.getElementById(`card-${key}`);
+                if (valElem) valElem.innerHTML = `--`;
+                if (statusBadge) {
+                    statusBadge.textContent = "Unavailable";
+                    statusBadge.className = "risk-badge";
+                    statusBadge.style.color = "var(--color-muted)";
+                    statusBadge.style.border = "1px solid var(--color-border)";
+                    statusBadge.style.background = "#F1F5F9";
+                }
+                if (dot) dot.style.backgroundColor = "var(--color-border)";
+                if (card) card.style.borderLeft = "4px solid var(--color-border)";
             });
-            document.getElementById("sys-last-reading-time").textContent = "-";
+            const sysTime = document.getElementById("sys-last-reading-time");
+            if (sysTime) sysTime.textContent = "--";
+            const ageLabel = document.getElementById("controller-age-label");
+            if (ageLabel) ageLabel.textContent = "Age: --";
+            const readingAge = document.getElementById("sys-reading-age");
+            if (readingAge) readingAge.textContent = "--";
         }
 
         function renderLogsTable(readings) {
@@ -522,7 +574,7 @@
                     <div class="empty-state" style="padding: 40px; border: none;">
                         <div class="empty-state-icon">${GrainLayout.icons.storage}</div>
                         <div class="empty-state-title">No sensor readings logged yet</div>
-                        <div class="empty-state-desc">Telemetry data from DHT22, MQ-135, and Capacitive Probe V1.2 will automatically appear here once transmitted.</div>
+                        <div class="empty-state-desc">Telemetry data from DHT22, MQ-135, and Capacitive Probe V1.2 will automatically appear here once transmitted from hardware node.</div>
                     </div>
                 `;
                 return;
@@ -541,11 +593,11 @@
                     </thead>
                     <tbody>
                         ${readings.map((r, idx) => {
-                            const timeStr = r.timestamp || "Just now";
-                            const tempVal = r.temperature !== undefined ? `${r.temperature}°C` : "N/A";
-                            const humVal = r.humidity !== undefined ? `${r.humidity}%` : "N/A";
-                            const gasVal = r.gas_index !== undefined ? r.gas_index : "N/A";
-                            const moistVal = r.moisture !== undefined ? `${r.moisture}%` : "N/A";
+                            const timeStr = r.timestamp || "Recent";
+                            const tempVal = (r.temperature !== undefined && r.temperature !== null) ? `${r.temperature}°C` : "--";
+                            const humVal = (r.humidity !== undefined && r.humidity !== null) ? `${r.humidity}%` : "--";
+                            const gasVal = (r.gas_index !== undefined && r.gas_index !== null) ? r.gas_index : "--";
+                            const moistVal = (r.moisture !== undefined && r.moisture !== null) ? `${r.moisture}%` : "--";
 
                             return `
                                 <tr style="border-bottom: 1px solid var(--color-border); background: ${idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF'};">
@@ -560,25 +612,6 @@
                     </tbody>
                 </table>
             `;
-        }
-
-        function generateSimulatedReadings(unitId, count = 20) {
-            const list = [];
-            const now = Date.now();
-            for (let i = 0; i < count; i++) {
-                const d = new Date(now - i * 15000);
-                const timeString = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                list.push({
-                    id: 100 - i,
-                    storage_unit_id: unitId,
-                    timestamp: timeString,
-                    temperature: (24.2 + (i % 3) * 0.2).toFixed(1),
-                    humidity: (58.0 + (i % 4) * 0.4).toFixed(1),
-                    gas_index: 90 + (i % 5) * 5, // NO ppm
-                    moisture: (13.0 + (i % 2) * 0.2).toFixed(1)
-                });
-            }
-            return list;
         }
     </script>
 </body>

@@ -384,8 +384,8 @@
             renderActiveUnitsTable(unitSummaries, selectedUnitId);
 
             // 5. Render Row 4: Latest Alerts & Last Scan
-            renderLatestAlerts(unitSummaries, isSimulate);
-            renderLastScan(activeSummary, isSimulate);
+            await renderLatestAlerts(unitSummaries);
+            await renderLastScan(activeSummary);
 
             lastUpdatedTimestamp = Date.now();
             updateRelativeTicker();
@@ -402,31 +402,11 @@
         }
 
         function getSimulatedSummaryForUnit(unit) {
-            const riskMap = { 1: "Safe", 2: "Safe", 3: "Medium", 4: "Safe" };
-            const tempMap = { 1: 28.5, 2: 24.2, 3: 31.8, 4: 25.1 };
-            const humMap = { 1: 62.0, 2: 55.4, 3: 68.2, 4: 58.0 };
-            const gasMap = { 1: 145, 2: 85, 3: 210, 4: 92 };
-            const moistMap = { 1: 13.2, 2: 12.8, 3: 15.4, 4: 13.0 };
-
             return {
                 storage_unit: unit,
-                latest_sensor_reading: {
-                    temperature: tempMap[unit.id] || 26.0,
-                    humidity: humMap[unit.id] || 60.0,
-                    gas_index: gasMap[unit.id] || 110,
-                    moisture: moistMap[unit.id] || 13.0,
-                    timestamp: "Just now"
-                },
-                latest_prediction: {
-                    risk_level: riskMap[unit.id] || "Safe",
-                    safe_days_remaining: (riskMap[unit.id] === "Medium") ? 6 : 14,
-                    recommendation: "Continuous monitoring active."
-                },
-                latest_scan_result: {
-                    contamination_risk: "Safe",
-                    confidence: 0.94,
-                    timestamp: "Today, 10:45 AM"
-                }
+                latest_sensor_reading: null,
+                latest_prediction: null,
+                latest_scan_result: null
             };
         }
 
@@ -442,11 +422,11 @@
             if (!summary || !summary.unit) {
                 tagElem.textContent = "No Unit Selected";
                 riskSlot.innerHTML = "";
-                tempElem.textContent = "-";
-                humElem.textContent = "-";
-                if (gasElem) gasElem.textContent = "-";
-                moistElem.textContent = "-";
-                daysElem.textContent = "-";
+                tempElem.textContent = "N/A";
+                humElem.textContent = "N/A";
+                if (gasElem) gasElem.textContent = "N/A";
+                moistElem.textContent = "N/A";
+                daysElem.textContent = "N/A";
                 return;
             }
 
@@ -474,7 +454,7 @@
             if (pred && pred.safe_days_remaining !== undefined) {
                 daysElem.textContent = `${pred.safe_days_remaining} Days`;
             } else {
-                daysElem.textContent = "14 Days";
+                daysElem.textContent = "Pending";
             }
         }
 
@@ -529,7 +509,7 @@
                                     <td style="padding: 12px 14px;">${r && r.gas_index !== undefined ? r.gas_index : 'N/A'}</td>
                                     <td style="padding: 12px 14px;">${r ? r.moisture + '%' : 'N/A'}</td>
                                     <td style="padding: 12px 14px;">${GrainLayout.getRiskBadgeHtml(s.risk)}</td>
-                                    <td style="padding: 12px 14px; color: var(--color-muted);">${r && r.timestamp ? r.timestamp : 'Active'}</td>
+                                    <td style="padding: 12px 14px; color: var(--color-muted);">${r && r.timestamp ? r.timestamp : 'Offline / Standby'}</td>
                                 </tr>
                             `;
                         }).join("")}
@@ -543,93 +523,82 @@
             GrainState.setSelectedUnitId(unitId, true);
         }
 
-        function renderLatestAlerts(unitSummaries, isSimulate) {
+        async function renderLatestAlerts(unitSummaries) {
             const container = document.getElementById("latest-alerts-container");
             if (!container) return;
 
-            let alerts = [];
-
-            if (isSimulate) {
-                alerts = [
-                    { title: "Critical Gas Index Spike Detected", risk: "Critical", unit: "Silo A-1", time: "10:45 AM" },
-                    { title: "Hotspot Formation Risk", risk: "High", unit: "Bin 12", time: "09:15 AM" },
-                    { title: "Upper Headspace Moisture Rising", risk: "Medium", unit: "Store 1", time: "08:30 AM" }
-                ];
-            } else {
-                // Synthesize from units
-                for (const s of unitSummaries) {
-                    if (s.risk !== "Safe") {
-                        alerts.push({
-                            title: `${s.risk} Risk Telemetry Threshold`,
-                            risk: s.risk,
-                            unit: s.unit.location,
-                            time: (s.reading && s.reading.timestamp) ? s.reading.timestamp : "Active"
-                        });
-                    }
-                    if (alerts.length >= 3) break;
-                }
+            try {
+                const res = await fetchAlerts({ limit: 3, acknowledged: 0 });
+                const alerts = (res && res.alerts) ? res.alerts : [];
 
                 if (alerts.length === 0) {
-                    alerts = [
-                        { title: "Facility Telemetry Operational", risk: "Safe", unit: "All Silos", time: "Active" },
-                        { title: "Automated Sensor Health Check", risk: "Safe", unit: "Calibration", time: "Today" },
-                        { title: "Ventilation System Standby", risk: "Safe", unit: "North Silo", time: "Today" }
-                    ];
+                    container.innerHTML = `
+                        <div style="padding: 18px; text-align: center; color: var(--color-muted); font-size: 13px; background: var(--color-card-subtle); border-radius: 4px; border: 1px solid var(--color-border-subtle);">
+                            <span style="color: var(--color-risk-safe); font-weight: 600;">&#10003; All Parameters Nominal</span>
+                            <p style="margin: 4px 0 0 0; font-size: 12px;">Zero unacknowledged threshold alerts across storage silos.</p>
+                        </div>
+                    `;
+                    return;
                 }
-            }
 
-            container.innerHTML = alerts.slice(0, 3).map(a => `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select);">
-                    <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <span style="font-size: 14px; font-weight: 600; color: var(--color-text);">${a.title}</span>
-                        <span style="font-size: 12px; color: var(--color-muted);">${a.unit} · ${a.time}</span>
+                container.innerHTML = alerts.map(a => `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--color-card-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-card);">
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 13px; font-weight: 600; color: var(--color-text);">${a.title || a.alert_type}</span>
+                            <span style="font-size: 11px; color: var(--color-muted);">${a.unit_name || 'Storage Lot'} &bull; ${a.timestamp || 'Active'}</span>
+                        </div>
+                        ${GrainLayout.getRiskBadgeHtml(a.severity)}
                     </div>
-                    ${GrainLayout.getRiskBadgeHtml(a.risk)}
-                </div>
-            `).join("");
+                `).join("");
+            } catch (e) {
+                container.innerHTML = `<div style="padding: 12px; font-size: 12px; color: var(--color-muted);">Unable to load alerts.</div>`;
+            }
         }
 
-        function renderLastScan(summary, isSimulate) {
+        async function renderLastScan(summary) {
             const container = document.getElementById("last-scan-container");
             if (!container) return;
 
-            let scan = summary ? summary.scan : null;
+            try {
+                const res = await fetchRecentScans(null, 1);
+                const latest = (res && res.scans && res.scans.length > 0) ? res.scans[0] : null;
 
-            if ((!scan || !scan.contamination_risk || scan.contamination_risk === "Not Scanned") && isSimulate) {
-                scan = {
-                    contamination_risk: "Safe",
-                    confidence: 0.94,
-                    timestamp: "Today, 10:15 AM"
-                };
-            }
+                if (!latest) {
+                    container.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 16px;">
+                            <p style="font-size: 13px; color: var(--color-muted); margin-bottom: 10px;">No optical UV fluorescence scans recorded yet.</p>
+                            <a href="contamination-scan.html" class="btn-primary btn-sm" style="text-decoration: none;">Run Sample Inspection</a>
+                        </div>
+                    `;
+                    return;
+                }
 
-            if (!scan || !scan.contamination_risk || scan.contamination_risk === "Not Scanned") {
+                const status = latest.screening_status || "Clear";
+                const areaPct = latest.fluorescence_area_pct !== undefined ? Number(latest.fluorescence_area_pct).toFixed(2) : "0.00";
+                const scanId = latest.scan_id || `SCN-2026-${String(latest.id || 1).padStart(3, '0')}`;
+                const timeStr = latest.timestamp || "Recently";
+                const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+                const thumbUrl = latest.image_url ? `${baseUrl}${latest.image_url}` : "";
+
                 container.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 12px;">
-                        <p style="font-size: 13px; color: var(--color-muted); margin-bottom: 8px;">No optical UV fluorescence scans uploaded yet.</p>
-                        <a href="contamination-scan.html" class="btn-primary btn-sm" style="text-decoration: none;">Upload Sample Scan</a>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <img src="${thumbUrl}" class="scan-thumb" alt="Sample" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'44\\' fill=\\'%230b1410\\'><rect width=\\'44\\' height=\\'44\\' fill=\\'%230b1410\\'/></svg>'" />
+                            <div>
+                                <div class="font-mono" style="font-size: 13px; font-weight: 700; color: var(--color-text);">${scanId}</div>
+                                <div style="font-size: 11px; color: var(--color-muted);">${timeStr}</div>
+                            </div>
+                        </div>
+                        ${GrainLayout.getRiskBadgeHtml(status)}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text); border-top: 1px solid var(--color-border); padding-top: 8px;">
+                        <span>BGYF Emission Area: <strong class="font-mono">${areaPct}%</strong></span>
+                        <a href="contamination-scan.html" style="color: var(--color-brand-green); font-weight: 600; text-decoration: none;">View Chamber &rarr;</a>
                     </div>
                 `;
-                return;
+            } catch (e) {
+                container.innerHTML = `<div style="padding: 12px; font-size: 12px; color: var(--color-muted);">Unable to load inspection record.</div>`;
             }
-
-            const risk = normalizeRiskLevel(scan.contamination_risk);
-            const confPct = Math.round((scan.confidence || 0.91) * 100);
-            const timeStr = scan.timestamp || "Today, 10:15 AM";
-
-            container.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <div>
-                        <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); text-transform: uppercase;">Aflatoxin Screening</div>
-                        <div style="font-size: 16px; font-weight: 700; color: var(--color-text); margin-top: 2px;">365nm UV Sample</div>
-                    </div>
-                    ${GrainLayout.getRiskBadgeHtml(risk)}
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--color-text); border-top: 1px solid var(--color-border); padding-top: 10px;">
-                    <span>Luminescence Match: <strong>${confPct}% Confidence</strong></span>
-                    <span style="color: var(--color-muted);">${timeStr}</span>
-                </div>
-            `;
         }
     </script>
 </body>

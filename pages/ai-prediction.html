@@ -379,36 +379,11 @@
                 console.warn("Could not fetch prediction from API:", err);
             }
 
-            // Fallback for simulation mode if API call returns null
-            if (!pred && isSimulate) {
-                pred = {
-                    risk_level: "Safe",
-                    spoilage_probability: 0.12,
-                    safe_days_remaining: 14,
-                    safe_days_min: 12,
-                    safe_days_max: 16,
-                    safe_days_range: "12–16 days",
-                    confidence: 0.94,
-                    confidence_pct: 94,
-                    recommendation: `Safe condition. Microclimate equilibrium is optimal for ${grain}. Standard routine monitoring recommended.`,
-                    grain_type: grain,
-                    inputs: {
-                        temperature: 24.5,
-                        humidity: 58.2,
-                        gas_index: 78,
-                        moisture: 13.1,
-                        grain: grain,
-                        rate_of_change: "+0.1°C / 24h"
-                    },
-                    trend_history: generateSimulatedTrend(0.12, "Safe")
-                };
-            }
-
             if (!pred) {
-                riskSlot.innerHTML = GrainLayout.getRiskBadgeHtml("Safe");
-                recText.innerText = "Awaiting initial sensor telemetry. Post sensor readings to compute AI spoilage forecasts.";
-                pctText.innerText = "-";
-                safeDaysRangeElem.innerText = "-";
+                riskSlot.innerHTML = `<span class="risk-badge" style="background:#f4f2ea;color:#5a544b;border:1px solid #c9c3b8;">No Prediction</span>`;
+                recText.innerText = "Awaiting initial sensor telemetry. Real DHT22, MQ-135, and capacitive moisture sensor readings must be logged before predictive spoilage risks can be computed.";
+                pctText.innerText = "--";
+                safeDaysRangeElem.innerText = "--";
                 confidenceBadge.innerText = "Confidence: --";
                 if (gauge) gauge.style.strokeDashoffset = "251.3";
                 renderTrendChart([]);
@@ -660,21 +635,21 @@
             const rateVal = document.getElementById("why-val-rate");
 
             if (!inputs) {
-                if (tempVal) tempVal.textContent = "-°C";
-                if (humVal) humVal.textContent = "-% RH";
-                if (gasVal) gasVal.textContent = "-";
-                if (moistVal) moistVal.textContent = "-%";
+                if (tempVal) tempVal.textContent = "--";
+                if (humVal) humVal.textContent = "--";
+                if (gasVal) gasVal.textContent = "--";
+                if (moistVal) moistVal.textContent = "--";
                 if (grainVal) grainVal.textContent = grain || "Wheat";
-                if (rateVal) rateVal.textContent = "Stable";
+                if (rateVal) rateVal.textContent = "--";
                 return;
             }
 
-            if (tempVal) tempVal.textContent = inputs.temperature !== undefined ? `${inputs.temperature}°C` : "24.5°C";
-            if (humVal) humVal.textContent = inputs.humidity !== undefined ? `${inputs.humidity}% RH` : "58.0% RH";
-            if (gasVal) gasVal.textContent = inputs.gas_index !== undefined ? `${inputs.gas_index}` : "75";
-            if (moistVal) moistVal.textContent = inputs.moisture !== undefined ? `${inputs.moisture}%` : "13.0%";
+            if (tempVal) tempVal.textContent = (inputs.temperature !== undefined && inputs.temperature !== null) ? `${inputs.temperature}°C` : "--";
+            if (humVal) humVal.textContent = (inputs.humidity !== undefined && inputs.humidity !== null) ? `${inputs.humidity}% RH` : "--";
+            if (gasVal) gasVal.textContent = (inputs.gas_index !== undefined && inputs.gas_index !== null) ? `${inputs.gas_index}` : "--";
+            if (moistVal) moistVal.textContent = (inputs.moisture !== undefined && inputs.moisture !== null) ? `${inputs.moisture}%` : "--";
             if (grainVal) grainVal.textContent = inputs.grain || grain || "Wheat";
-            if (rateVal) rateVal.textContent = inputs.rate_of_change || "+0.1°C / 24h";
+            if (rateVal) rateVal.textContent = inputs.rate_of_change || "Steady";
         }
 
         // Helper to synthesize realistic 14-day history for demo

@@ -3,120 +3,51 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Contamination Scan - Grain Guardian</title>
+    <title>Optical Contamination Screening - Grain Guardian</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
     <!-- Unified Theme Tokens & Styles -->
     <link rel="stylesheet" href="../css/theme.css" />
     <style>
-        .stepper-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            padding: 12px 16px;
-            background: #F8FAFC;
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-select);
-            margin-bottom: 20px;
+        .workflow-step.active {
+            box-shadow: 0 0 0 1px var(--color-brand-green);
         }
-        .step-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            position: relative;
-            z-index: 2;
-        }
-        .step-circle {
-            width: 28px;
-            height: 28px;
+        .instruction-step-num {
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 700;
-            background: #E2E8F0;
-            color: var(--color-muted);
-            transition: all 0.25s ease;
-        }
-        .step-item.active .step-circle {
             background: var(--color-brand-green);
-            color: #FFFFFF;
-            box-shadow: 0 0 0 4px var(--color-brand-green-light);
-            animation: pulseRing 1.5s infinite;
-        }
-        .step-item.completed .step-circle {
-            background: var(--color-risk-safe);
-            color: #FFFFFF;
-        }
-        .step-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--color-muted);
-        }
-        .step-item.active .step-label {
-            color: var(--color-brand-green);
-        }
-        .step-item.completed .step-label {
-            color: var(--color-text);
-        }
-        .step-divider {
-            flex: 1;
-            height: 2px;
-            background: #E2E8F0;
-            margin: 0 10px;
-            position: relative;
-            top: 0;
-        }
-        .step-divider.filled {
-            background: var(--color-risk-safe);
-        }
-        @keyframes pulseRing {
-            0% { box-shadow: 0 0 0 0 rgba(11, 61, 46, 0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(11, 61, 46, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(11, 61, 46, 0); }
-        }
-        .viewport-box {
-            background: #0B0F19;
-            min-height: 440px;
-            display: flex;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            position: relative;
-            overflow: hidden;
-            border-radius: 0 0 var(--radius-card) var(--radius-card);
+            flex-shrink: 0;
         }
-        .viewport-box img {
-            max-width: 100%;
-            max-height: 480px;
-            object-fit: contain;
-            display: block;
-            border-radius: 4px;
-        }
-        .recent-scan-item {
+        .recent-scan-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--color-border);
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--color-border-subtle);
             cursor: pointer;
             transition: background-color 0.15s ease;
         }
-        .recent-scan-item:last-child {
+        .recent-scan-row:last-child {
             border-bottom: none;
         }
-        .recent-scan-item:hover {
-            background-color: #F8FAFC;
+        .recent-scan-row:hover {
+            background-color: #f7f5ed;
         }
-        .recent-thumbnail {
+        .scan-thumb {
             width: 44px;
             height: 44px;
-            border-radius: 6px;
+            border-radius: 4px;
             object-fit: cover;
-            background: #0F172A;
+            background: #0b1410;
             border: 1px solid var(--color-border);
             flex-shrink: 0;
         }
@@ -125,176 +56,264 @@
 <body>
     <main id="page-content">
         <div class="grid-12">
-            <!-- Header & Action Card (Col-12) -->
+            <!-- 6-Step Agricultural Inspection Workflow Tracker -->
             <div class="col-12">
-                <div class="theme-card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="width: 22px; height: 22px; color: var(--color-brand-green); display: flex;" id="scan-header-icon"></span>
-                            <h2 style="font-size: 20px; font-weight: 700; color: var(--color-text);" id="scan-page-heading">UV Fluorescence Screening</h2>
+                <div class="inspection-workflow-bar" id="workflow-track" role="navigation" aria-label="Inspection Workflow Steps">
+                    <div class="workflow-step active" id="step-1">
+                        <span class="workflow-step-num">1</span>
+                        <span>Sample Prep</span>
+                    </div>
+                    <span class="workflow-arrow">&rarr;</span>
+
+                    <div class="workflow-step" id="step-2">
+                        <span class="workflow-step-num">2</span>
+                        <span>Camera Feed</span>
+                    </div>
+                    <span class="workflow-arrow">&rarr;</span>
+
+                    <div class="workflow-step" id="step-3">
+                        <span class="workflow-step-num">3</span>
+                        <span>Capture Frame</span>
+                    </div>
+                    <span class="workflow-arrow">&rarr;</span>
+
+                    <div class="workflow-step" id="step-4">
+                        <span class="workflow-step-num">4</span>
+                        <span>BGYF Analysis</span>
+                    </div>
+                    <span class="workflow-arrow">&rarr;</span>
+
+                    <div class="workflow-step" id="step-5">
+                        <span class="workflow-step-num">5</span>
+                        <span>Screening Result</span>
+                    </div>
+                    <span class="workflow-arrow">&rarr;</span>
+
+                    <div class="workflow-step" id="step-6">
+                        <span class="workflow-step-num">6</span>
+                        <span>Archive Log</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Left Column: Inspection Bench & Optical Chamber Viewport (Col-8) -->
+            <div class="col-8" style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Step 1 Card: Sample Preparation & Chamber Protocols -->
+                <div class="theme-card" id="card-sample-prep">
+                    <div class="theme-card-header" style="margin-bottom: 12px;">
+                        <div class="theme-card-title">
+                            <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-sample-prep"></span>
+                            <span>Inspection Protocol: Sample & Darkfield Preparation</span>
                         </div>
-                        <p style="font-size: 14px; color: var(--color-muted); margin-top: 4px;">Optical aflatoxin biomarker detection under 365nm ultraviolet excitation.</p>
+                        <span id="target-unit-pill" class="font-mono" style="font-size: 12px; font-weight: 600; background: var(--color-card-subtle); border: 1px solid var(--color-border); padding: 3px 10px; border-radius: 4px;">
+                            Unit #1 &bull; Wheat
+                        </span>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <button type="button" class="btn-primary" id="btn-scan-sample" onclick="triggerScanSample()">
-                            <span style="width: 18px; height: 18px; display: flex;" id="scan-btn-icon"></span>
-                            <span id="scan-btn-text">Scan New Sample</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; font-size: 13px; line-height: 1.45; color: var(--color-text);">
+                        <div style="background: var(--color-card-subtle); padding: 12px; border-radius: 4px; border: 1px solid var(--color-border-subtle); display: flex; gap: 10px;">
+                            <span class="instruction-step-num">1</span>
+                            <div>
+                                <strong style="display: block; margin-bottom: 2px;">Dispense Sample</strong>
+                                Measure a clean 50g grain lot. Spread in a uniform monolayer across the non-reflective sample tray.
+                            </div>
+                        </div>
 
-            <!-- Bridge Offline Alert (Hidden by default, shown if bridge offline) -->
-            <div class="col-12" id="bridge-error-banner" style="display: none;">
-                <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-left: 4px solid var(--color-risk-critical); border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: var(--color-risk-critical); width: 20px; height: 20px; display: flex;" id="error-alert-icon"></span>
-                        <div>
-                            <span style="font-size: 14px; font-weight: 700; color: #991B1B;">Hardware Bridge Offline</span>
-                            <p style="font-size: 13px; color: #7F1D1D; margin: 2px 0 0 0;" id="bridge-error-msg">ESP32 365nm UV controller / camera node is unreachable on serial USB bus.</p>
+                        <div style="background: var(--color-card-subtle); padding: 12px; border-radius: 4px; border: 1px solid var(--color-border-subtle); display: flex; gap: 10px;">
+                            <span class="instruction-step-num">2</span>
+                            <div>
+                                <strong style="display: block; margin-bottom: 2px;">Enclose Chamber</strong>
+                                Insert sample tray into the inspection enclosure. Seal the viewing door to block ambient white light.
+                            </div>
+                        </div>
+
+                        <div style="background: var(--color-card-subtle); padding: 12px; border-radius: 4px; border: 1px solid var(--color-border-subtle); display: flex; gap: 10px;">
+                            <span class="instruction-step-num">3</span>
+                            <div>
+                                <strong style="display: block; margin-bottom: 2px;">365nm Optical Focus</strong>
+                                Align camera directly perpendicular to the sample bed. Frame kernels within the central reticle.
+                            </div>
                         </div>
                     </div>
-                    <button type="button" class="btn-outline btn-sm" onclick="dismissBridgeError()" style="border-color: #FCA5A5; color: #991B1B;">Dismiss</button>
-                </div>
-            </div>
 
-            <!-- Stepper Container (Requirement 1: Requested, UV on, Capturing, Analysing, Done) -->
-            <div class="col-12" id="stepper-card" style="display: none;">
-                <div class="stepper-container">
-                    <!-- Step 1: Requested -->
-                    <div class="step-item" id="step-requested">
-                        <div class="step-circle" id="circle-requested">1</div>
-                        <span class="step-label">Requested</span>
-                    </div>
-                    <div class="step-divider" id="div-1"></div>
-
-                    <!-- Step 2: UV on -->
-                    <div class="step-item" id="step-uv">
-                        <div class="step-circle" id="circle-uv">2</div>
-                        <span class="step-label">UV on</span>
-                    </div>
-                    <div class="step-divider" id="div-2"></div>
-
-                    <!-- Step 3: Capturing -->
-                    <div class="step-item" id="step-capturing">
-                        <div class="step-circle" id="circle-capturing">3</div>
-                        <span class="step-label">Capturing</span>
-                    </div>
-                    <div class="step-divider" id="div-3"></div>
-
-                    <!-- Step 4: Analysing -->
-                    <div class="step-item" id="step-analysing">
-                        <div class="step-circle" id="circle-analysing">4</div>
-                        <span class="step-label">Analysing</span>
-                    </div>
-                    <div class="step-divider" id="div-4"></div>
-
-                    <!-- Step 5: Done -->
-                    <div class="step-item" id="step-done">
-                        <div class="step-circle" id="circle-done">5</div>
-                        <span class="step-label">Done</span>
+                    <!-- UV Eye Safety Notice -->
+                    <div class="uv-safety-card" style="margin-top: 14px;">
+                        <span style="width: 20px; height: 20px; color: #d97706; flex-shrink: 0; display: flex;" id="icon-uv-safety"></span>
+                        <div style="font-size: 12px; line-height: 1.5; color: #78350f;">
+                            <strong>UV-A Radiation Safety Protocol:</strong> 365nm ultraviolet excitation is active during inspection. Never view direct or reflected UV emissions without certified UV-blocking protective eyewear. Keep optical chamber closed while LEDs are energized.
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- UV Fluorescence Viewport (Col-8) -->
-            <div class="col-8">
+                <!-- Step 2 & 3: Optical Camera Chamber Viewport -->
                 <div class="theme-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
-                    <!-- Viewport Header Toolbar -->
-                    <div style="padding: 14px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                        <div>
-                            <span style="font-size: 15px; font-weight: 700; color: var(--color-text); display: flex; align-items: center; gap: 8px;">
-                                <span style="width: 18px; height: 18px; color: var(--color-brand-green); display: flex;" id="view-icon-slot"></span>
-                                <span>365nm Optical Capture Chamber</span>
+                    <!-- Chamber Viewport Header & Hardware Status -->
+                    <div style="padding: 12px 18px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--color-card-subtle);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 14px; font-weight: 700; color: var(--color-text); display: flex; align-items: center; gap: 8px;">
+                                <span style="width: 18px; height: 18px; color: var(--color-brand-green); display: flex;" id="icon-chamber-header"></span>
+                                <span>365nm Optical Inspection Viewport</span>
                             </span>
-                            <span style="font-size: 12px; color: var(--color-muted);" id="sample-id-label">Scan ID: SCN-AWAITING</span>
+                            <span id="camera-hardware-badge" style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #eaf6ee; color: var(--color-risk-safe); border: 1px solid #bce3cb; display: inline-flex; align-items: center; gap: 5px;">
+                                <span class="tech-dot online"></span>
+                                <span id="camera-status-text">Camera Standby</span>
+                            </span>
                         </div>
 
-                        <!-- Requirement 2: HSV fluorescence mask overlay toggle beside image -->
+                        <!-- Camera Device Selector & Mask Toggle -->
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <span id="active-view-tag" style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #F1F5F9; color: var(--color-muted);">Raw Frame</span>
-                            <button type="button" class="btn-outline btn-sm" id="btn-toggle-mask" onclick="toggleMaskOverlay()" disabled title="Toggle between raw camera capture and HSV fluorescence mask">
-                                <span style="width: 15px; height: 15px; display: flex;" id="icon-toggle-mask"></span>
+                            <select id="camera-device-select" class="theme-select" style="height: 32px; font-size: 12px; min-width: 160px; padding-right: 28px;" onchange="changeCameraDevice()">
+                                <option value="">Default Optical Camera</option>
+                            </select>
+
+                            <button type="button" class="btn-outline btn-sm" id="btn-toggle-mask" onclick="toggleMaskOverlay()" disabled title="Toggle between Raw 365nm Capture and Segmented HSV Fluorescence Mask">
                                 <span id="toggle-mask-label">Show HSV Mask</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Canvas / Real Image Viewport (Requirement 2: NO stock photos) -->
-                    <div id="scan-viewport" class="viewport-box">
-                        <!-- Subdued grid overlay for technical alignment -->
-                        <div style="position: absolute; inset: 0; background: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none;"></div>
+                    <!-- Optical Viewport Display (Live Video / Captured Canvas / State Card) -->
+                    <div class="optical-chamber" id="optical-viewport-area">
+                        <!-- Crosshair & Sample Bed Alignment Guide -->
+                        <div class="chamber-reticle"></div>
 
-                        <!-- Real Captured Frame or HSV Mask -->
-                        <img id="scan-frame-img" style="display: none;" alt="Latest Real Captured UV Frame" />
+                        <!-- Chamber Overlay Tag -->
+                        <div class="chamber-status-tag font-mono" id="chamber-overlay-tag">
+                            <span class="tech-dot online" id="stream-status-dot"></span>
+                            <span id="chamber-mode-label">LIVE FEED &bull; 365nm CHAMBER</span>
+                        </div>
 
-                        <!-- Requirement 2: Empty State: "No scan yet. Place a sample in the scan box and press Scan New Sample." -->
-                        <div id="scan-empty-state" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 24px; color: #94A3B8; z-index: 2;">
-                            <span style="width: 52px; height: 52px; margin-bottom: 16px; color: #64748B; display: flex;" id="empty-scan-icon"></span>
-                            <div style="font-size: 16px; font-weight: 700; color: #FFFFFF; margin-bottom: 6px;">No scan yet.</div>
-                            <p style="font-size: 14px; max-width: 400px; margin-bottom: 20px; line-height: 1.5; color: #94A3B8;">
-                                Place a sample in the scan box and press <strong>Scan New Sample</strong>.
+                        <!-- Live Video Stream -->
+                        <video id="camera-stream" autoplay playsinline muted style="display: none;"></video>
+
+                        <!-- Static Captured Frame Display -->
+                        <img id="captured-frame-img" alt="Captured Grain Sample" style="display: none;" />
+
+                        <!-- Offline / Permissions Fallback State -->
+                        <div id="camera-fallback-card" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 24px; color: #94a3b8; z-index: 6;">
+                            <span style="width: 50px; height: 50px; margin-bottom: 14px; color: #57695e; display: flex;" id="icon-camera-fallback"></span>
+                            <div style="font-size: 16px; font-weight: 700; color: #fbfaf6; margin-bottom: 6px;" id="camera-fallback-title">Camera Feed Standby</div>
+                            <p style="font-size: 13px; max-width: 420px; margin-bottom: 20px; line-height: 1.5; color: #94a3b8;" id="camera-fallback-desc">
+                                Connect an optical inspection camera or initialize your browser webcam to stream the sample bed.
                             </p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                                <button type="button" class="btn-primary btn-sm" onclick="initCameraStream()">
+                                    Initialize Camera
+                                </button>
+                                <label class="btn-outline btn-sm" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                    <span>Upload Sample Image</span>
+                                    <input type="file" id="sample-file-input" accept="image/*" style="display: none;" onchange="handleSampleFileUpload(event)" />
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Working Canvas for Frame Extraction -->
+                        <canvas id="working-canvas" style="display: none;"></canvas>
+                    </div>
+
+                    <!-- Chamber Actions Toolbar (Bottom) -->
+                    <div style="padding: 14px 20px; background: #ffffff; border-top: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 12px; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="font-weight: 600;">UV Excitation:</span>
+                                <span id="uv-relay-status" style="font-family: var(--font-mono); color: var(--color-text);">Actuator Ready (5s auto-shutoff)</span>
+                            </span>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <!-- Live Streaming Mode Actions -->
+                            <div id="live-controls" style="display: flex; gap: 10px;">
+                                <label class="btn-outline btn-sm" style="cursor: pointer;" title="Load local image file for testing or lab analysis">
+                                    <span>Upload Image</span>
+                                    <input type="file" id="upload-sub-input" accept="image/*" style="display: none;" onchange="handleSampleFileUpload(event)" />
+                                </label>
+                                <button type="button" class="btn-primary" id="btn-capture-frame" onclick="captureSampleFrame()" disabled>
+                                    <span style="width: 16px; height: 16px; display: flex;" id="icon-btn-capture"></span>
+                                    <span>Capture Sample Frame</span>
+                                </button>
+                            </div>
+
+                            <!-- Captured Frame Mode Actions -->
+                            <div id="captured-controls" style="display: none; gap: 10px;">
+                                <button type="button" class="btn-outline btn-sm" onclick="retakeSampleFrame()">
+                                    Retake Frame
+                                </button>
+                                <button type="button" class="btn-primary" id="btn-run-analysis" onclick="executeImageAnalysis()">
+                                    <span style="width: 16px; height: 16px; display: flex;" id="icon-btn-analyze"></span>
+                                    <span id="btn-analyze-text">Analyze Fluorescence (BGYF)</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Result Card & Recent Scans (Col-4) -->
+            <!-- Right Column: Results & Inspection History (Col-4) -->
             <div class="col-4" style="display: flex; flex-direction: column; gap: 20px;">
-                <!-- Requirement 3: Result Card -->
-                <div class="theme-card" id="screening-result-card" style="border-left: 4px solid var(--color-risk-safe);">
-                    <div class="theme-card-header" style="margin-bottom: 14px;">
-                        <div class="theme-card-title">Screening Result</div>
+                <!-- Step 5: Screening Classification Result Card -->
+                <div class="theme-card" id="screening-result-card" style="border-left: 4px solid var(--color-border);">
+                    <div class="theme-card-header" style="margin-bottom: 12px;">
+                        <div>
+                            <div class="theme-card-title">Inspection Assessment</div>
+                            <span style="font-size: 12px; color: var(--color-muted);" id="result-grain-label">Wheat &bull; Monitored Lot</span>
+                        </div>
                         <div id="screening-status-slot">
-                            <!-- Clear / Suspect / Positive -->
-                            <span class="risk-badge risk-badge-safe">Clear</span>
+                            <span class="risk-badge risk-badge-safe font-mono" style="font-size: 11px;">Pending</span>
                         </div>
                     </div>
 
-                    <!-- Fluorescence area % -->
-                    <div style="margin: 16px 0; padding-bottom: 16px; border-bottom: 1px solid var(--color-border);">
-                        <div class="metric-label">Fluorescence Area</div>
-                        <div class="metric-value" id="val-area-pct" style="font-size: 34px; font-weight: 700; color: var(--color-text); margin-top: 2px;">
-                            -<span class="metric-unit">%</span>
+                    <!-- Measured Optical Fluorescence Area -->
+                    <div style="margin: 14px 0; padding-bottom: 14px; border-bottom: 1px solid var(--color-border);">
+                        <div class="metric-label" style="font-size: 11px; margin-bottom: 4px;">Segmented BGYF Emission Area</div>
+                        <div class="metric-value font-mono" id="val-area-pct" style="font-size: 32px; font-weight: 700; color: var(--color-text);">
+                            --<span class="metric-unit" style="font-size: 16px;">%</span>
                         </div>
-                        <p style="font-size: 12px; color: var(--color-muted); margin-top: 4px;" id="threshold-rule-label">
-                            Clear: &lt;1.0% • Suspect: 1.0–5.0% • Positive: &gt;5.0%
-                        </p>
-                    </div>
-
-                    <!-- Metadata Rows: Scan ID, Timestamp -->
-                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--color-muted);">Scan ID:</span>
-                            <span style="font-weight: 600; color: var(--color-text);" id="result-scan-id">-</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--color-muted);">Timestamp:</span>
-                            <span style="font-weight: 600; color: var(--color-text);" id="result-timestamp">-</span>
+                        <div style="font-size: 11px; color: var(--color-muted); margin-top: 4px; display: flex; justify-content: space-between;">
+                            <span>Screening Rules:</span>
+                            <span class="font-mono">Clear &lt;1.0% &bull; Suspect 1-5% &bull; Pos &gt;5%</span>
                         </div>
                     </div>
 
-                    <!-- Requirement 4: Always show: "UV fluorescence is a screening indicator, not laboratory confirmation of aflatoxin." -->
-                    <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-left: 3px solid var(--color-muted); border-radius: 6px; padding: 12px 14px; margin-top: 18px;">
-                        <p style="font-size: 12px; color: var(--color-muted); margin: 0; line-height: 1.45; font-weight: 500;">
-                            UV fluorescence is a screening indicator, not laboratory confirmation of aflatoxin.
+                    <!-- Technical Inspection Metadata Table -->
+                    <table class="inspection-table" style="margin-bottom: 16px;">
+                        <tbody>
+                            <tr>
+                                <th style="width: 40%;">Inspection ID</th>
+                                <td id="res-scan-id" class="font-mono" style="font-weight: 600;">--</td>
+                            </tr>
+                            <tr>
+                                <th>Timestamp</th>
+                                <td id="res-timestamp" style="font-size: 12px;">Awaiting capture</td>
+                            </tr>
+                            <tr>
+                                <th>Storage Unit</th>
+                                <td id="res-unit-name">Silo A - North Sector</td>
+                            </tr>
+                            <tr>
+                                <th>Algorithm</th>
+                                <td style="font-size: 11px;">OpenCV HSV BGYF Filter</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Scientific Limitation & Regulatory Guidance Notice -->
+                    <div style="background: var(--color-card-subtle); border: 1px solid var(--color-border); border-left: 3px solid var(--color-muted); border-radius: 4px; padding: 10px 12px;">
+                        <p style="font-size: 11px; color: var(--color-muted); margin: 0; line-height: 1.45;">
+                            <strong>Analytical Scope Notice:</strong> Optical fluorescence screening measures presumptive Bright Greenish-Yellow Fluorescence (BGYF) associated with fungal kojic acid production under 365nm UV excitation. This rapid optical sorting tool is not a certified laboratory confirmation (HPLC/ELISA) of quantitative aflatoxin concentration in parts-per-billion (ppb).
                         </p>
                     </div>
                 </div>
 
-                <!-- Requirement 5: "Recent scans" list (last 5) with thumbnail, time, %, status -->
+                <!-- Step 6: Recent Scans History Card (Last 5) -->
                 <div class="theme-card" style="padding: 0; overflow: hidden;">
-                    <div style="padding: 14px 18px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 14px; font-weight: 700; color: var(--color-text);">Recent Scans</span>
-                        <span style="font-size: 12px; color: var(--color-muted);">Last 5</span>
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; background: var(--color-card-subtle);">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--color-text);">Recent Inspection Logs</span>
+                        <span style="font-size: 11px; color: var(--color-muted); font-family: var(--font-mono);">Last 5 Records</span>
                     </div>
 
-                    <div id="recent-scans-list">
-                        <!-- Populated dynamically via JS -->
+                    <div id="recent-scans-list" style="min-height: 160px;">
                         <div style="padding: 24px; text-align: center; color: var(--color-muted); font-size: 13px;">
-                            No recent scans yet.
+                            No previous scans recorded for this unit.
                         </div>
                     </div>
                 </div>
@@ -307,111 +326,342 @@
     <script src="../js/api.js"></script>
     <script src="../js/layout.js"></script>
     <script>
-        // Screening status config thresholds
+        // Screening Threshold Rules per Project Specification
         const SCREENING_THRESHOLDS = {
             clear_max: 1.0,
             suspect_max: 5.0
         };
 
-        const STEPPER_STEPS = ["Requested", "UV on", "Capturing", "Analysing", "Done"];
-
-        let currentScan = null;
+        // State Machine Variables
+        let activeMediaStream = null;
+        let capturedImageBlob = null;
+        let activeScanResult = null;
         let isShowingMask = false;
-        let activePollingTimer = null;
+        let isAnalysisInProgress = false;
 
         document.addEventListener("DOMContentLoaded", async () => {
-            // Initialize Unified Layout
+            // Initialize Unified Application Layout
             await GrainLayout.init({
                 title: "Contamination Scan",
-                subtitle: "UV fluorescence screening",
+                subtitle: "Optical UV-A fluorescence screening",
                 activeNav: "contamination-scan"
             });
 
             // Set Icons using inline SVG
-            document.getElementById("scan-header-icon").innerHTML = GrainLayout.icons.scan;
-            document.getElementById("scan-btn-icon").innerHTML = GrainLayout.icons.refresh;
-            document.getElementById("view-icon-slot").innerHTML = GrainLayout.icons.scan;
-            document.getElementById("empty-scan-icon").innerHTML = GrainLayout.icons.scan;
-            document.getElementById("icon-toggle-mask").innerHTML = GrainLayout.icons.scan;
-            document.getElementById("error-alert-icon").innerHTML = GrainLayout.icons.critical;
+            document.getElementById("icon-sample-prep").innerHTML = GrainLayout.icons.storage;
+            document.getElementById("icon-uv-safety").innerHTML = GrainLayout.icons.medium;
+            document.getElementById("icon-chamber-header").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("icon-camera-fallback").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("icon-btn-capture").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("icon-btn-analyze").innerHTML = GrainLayout.icons.ai;
 
-            // Load initial scan data and recent scans
-            await loadScanPageData();
+            // Load initial state for selected unit
+            syncSelectedUnitUI();
+            await loadLatestUnitScan();
+            await loadRecentScans();
 
-            // Re-render when global unit changes
-            GrainState.onStateChange(() => {
-                loadScanPageData();
+            // Re-sync when global unit/grain selector changes in topbar
+            GrainState.onStateChange(async () => {
+                syncSelectedUnitUI();
+                await loadLatestUnitScan();
+                await loadRecentScans();
             });
+
+            // Populate camera devices if supported
+            await enumerateCameraDevices();
         });
 
-        async function loadScanPageData() {
+        function syncSelectedUnitUI() {
             const unitId = GrainState.getSelectedUnitId() || 1;
-            const grain = GrainState.getSelectedGrain();
+            const grain = GrainState.getSelectedGrain() || "Wheat";
+            const pill = document.getElementById("target-unit-pill");
+            const grainLabel = document.getElementById("result-grain-label");
+            const unitNameTd = document.getElementById("res-unit-name");
 
-            document.getElementById("scan-page-heading").innerText = `UV Screening for Unit #${unitId} (${grain})`;
+            if (pill) pill.textContent = `Unit #${unitId} \u2022 ${grain}`;
+            if (grainLabel) grainLabel.textContent = `${grain} \u2022 Monitored Lot`;
+            if (unitNameTd) unitNameTd.textContent = `Unit #${unitId} (${grain})`;
+        }
 
-            // Load latest scan
+        // ==========================================
+        // STEP 1 & 2: Camera Feed Initialization
+        // ==========================================
+        async function enumerateCameraDevices() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
             try {
-                const res = await fetchLatestScan(unitId);
-                if (res && res.scan) {
-                    currentScan = res.scan;
-                    displayScanResult(res.scan);
-                } else {
-                    currentScan = null;
-                    displayEmptyScanState();
-                }
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === "videoinput");
+                const select = document.getElementById("camera-device-select");
+                if (!select || videoDevices.length === 0) return;
+
+                select.innerHTML = videoDevices.map((d, idx) => `
+                    <option value="${d.deviceId}">${d.label || `Optical Camera ${idx + 1}`}</option>
+                `).join("");
             } catch (err) {
-                console.warn("Could not load latest scan:", err);
-                displayEmptyScanState();
+                console.warn("Unable to enumerate video devices:", err);
             }
-
-            // Load recent scans list (Requirement 5)
-            await loadRecentScansList(unitId);
         }
 
-        function displayEmptyScanState() {
-            const img = document.getElementById("scan-frame-img");
-            const emptyPrompt = document.getElementById("scan-empty-state");
-            const toggleBtn = document.getElementById("btn-toggle-mask");
-            const sampleIdLabel = document.getElementById("sample-id-label");
-            const areaPctVal = document.getElementById("val-area-pct");
-            const statusSlot = document.getElementById("screening-status-slot");
-            const scanIdElem = document.getElementById("result-scan-id");
-            const tsElem = document.getElementById("result-timestamp");
-            const resultCard = document.getElementById("screening-result-card");
+        async function initCameraStream(preferredDeviceId = null) {
+            updateWorkflowStep(2);
+            const statusText = document.getElementById("camera-status-text");
+            const badge = document.getElementById("camera-hardware-badge");
+            const fallbackCard = document.getElementById("camera-fallback-card");
+            const videoElem = document.getElementById("camera-stream");
+            const capturedImg = document.getElementById("captured-frame-img");
+            const captureBtn = document.getElementById("btn-capture-frame");
 
-            if (img) img.style.display = "none";
-            if (emptyPrompt) emptyPrompt.style.display = "flex";
-            if (toggleBtn) toggleBtn.disabled = true;
-            if (sampleIdLabel) sampleIdLabel.textContent = "No scan loaded";
-            if (areaPctVal) areaPctVal.innerHTML = `-<span class="metric-unit">%</span>`;
-            if (statusSlot) statusSlot.innerHTML = `<span class="risk-badge risk-badge-safe">Clear</span>`;
-            if (scanIdElem) scanIdElem.textContent = "-";
-            if (tsElem) tsElem.textContent = "-";
-            if (resultCard) resultCard.style.borderLeftColor = "var(--color-risk-safe)";
-        }
+            if (statusText) statusText.textContent = "Connecting Camera...";
 
-        function displayScanResult(scan) {
-            const img = document.getElementById("scan-frame-img");
-            const emptyPrompt = document.getElementById("scan-empty-state");
-            const toggleBtn = document.getElementById("btn-toggle-mask");
-            const sampleIdLabel = document.getElementById("sample-id-label");
-            const areaPctVal = document.getElementById("val-area-pct");
-            const statusSlot = document.getElementById("screening-status-slot");
-            const scanIdElem = document.getElementById("result-scan-id");
-            const tsElem = document.getElementById("result-timestamp");
-            const resultCard = document.getElementById("screening-result-card");
-            const activeViewTag = document.getElementById("active-view-tag");
-
-            if (!scan) {
-                displayEmptyScanState();
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setCameraStateUI("not_supported", "Browser Camera API not supported. Please use the Upload Image option.");
                 return;
             }
 
-            const scanIdStr = scan.scan_id || `SCN-2026-${scan.id ? String(scan.id).padStart(3, '0') : '001'}`;
-            const areaPct = scan.fluorescence_area_pct !== undefined ? scan.fluorescence_area_pct : 0.42;
+            try {
+                // Stop any existing stream
+                if (activeMediaStream) {
+                    activeMediaStream.getTracks().forEach(track => track.stop());
+                }
 
-            // Determine screening status per config
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "environment"
+                    }
+                };
+
+                if (preferredDeviceId) {
+                    constraints.video.deviceId = { exact: preferredDeviceId };
+                }
+
+                activeMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElem.srcObject = activeMediaStream;
+                await videoElem.play();
+
+                // Live stream active
+                videoElem.style.display = "block";
+                if (capturedImg) capturedImg.style.display = "none";
+                if (fallbackCard) fallbackCard.style.display = "none";
+                if (captureBtn) captureBtn.disabled = false;
+
+                setCameraStateUI("connected", "Camera Active \u2022 1280x720");
+                document.getElementById("chamber-mode-label").textContent = "LIVE STREAM \u2022 365nm CHAMBER";
+                await enumerateCameraDevices();
+
+            } catch (err) {
+                console.error("Camera initialization failure:", err);
+                if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                    setCameraStateUI("denied", "Camera permission was denied. Allow camera access in browser URL bar, or upload an image file.");
+                } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+                    setCameraStateUI("not_found", "No camera detected. Connect a USB camera / microscope, or upload a grain sample photo.");
+                } else {
+                    setCameraStateUI("error", `Camera acquisition error: ${err.message || "Unknown error"}. Use image upload as fallback.`);
+                }
+            }
+        }
+
+        function setCameraStateUI(state, message) {
+            const statusText = document.getElementById("camera-status-text");
+            const badge = document.getElementById("camera-hardware-badge");
+            const fallbackCard = document.getElementById("camera-fallback-card");
+            const title = document.getElementById("camera-fallback-title");
+            const desc = document.getElementById("camera-fallback-desc");
+            const captureBtn = document.getElementById("btn-capture-frame");
+            const videoElem = document.getElementById("camera-stream");
+
+            if (videoElem) videoElem.style.display = "none";
+            if (captureBtn) captureBtn.disabled = true;
+
+            if (fallbackCard) fallbackCard.style.display = "flex";
+            if (title) title.textContent = state === "denied" ? "Camera Permission Required" : "Camera Disconnected";
+            if (desc) desc.textContent = message;
+
+            if (statusText) statusText.textContent = state === "connected" ? "Connected" : "Disconnected";
+            if (badge) {
+                badge.style.background = state === "connected" ? "#eaf6ee" : "#fef2f2";
+                badge.style.color = state === "connected" ? "var(--color-risk-safe)" : "var(--color-risk-critical)";
+                badge.style.borderColor = state === "connected" ? "#bce3cb" : "#fecaca";
+                const dot = badge.querySelector(".tech-dot");
+                if (dot) dot.className = state === "connected" ? "tech-dot online" : "tech-dot critical";
+            }
+        }
+
+        async function changeCameraDevice() {
+            const select = document.getElementById("camera-device-select");
+            const devId = select ? select.value : null;
+            if (devId) await initCameraStream(devId);
+        }
+
+        // ==========================================
+        // STEP 3: Frame Capture & Retake Handling
+        // ==========================================
+        function captureSampleFrame() {
+            const videoElem = document.getElementById("camera-stream");
+            const canvas = document.getElementById("working-canvas");
+            const capturedImg = document.getElementById("captured-frame-img");
+            const liveControls = document.getElementById("live-controls");
+            const capturedControls = document.getElementById("captured-controls");
+
+            if (!videoElem || !canvas) return;
+
+            const w = videoElem.videoWidth || 1280;
+            const h = videoElem.videoHeight || 720;
+            canvas.width = w;
+            canvas.height = h;
+
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(videoElem, 0, 0, w, h);
+
+            canvas.toBlob((blob) => {
+                capturedImageBlob = blob;
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+
+                videoElem.style.display = "none";
+                if (capturedImg) {
+                    capturedImg.src = dataUrl;
+                    capturedImg.style.display = "block";
+                }
+
+                if (liveControls) liveControls.style.display = "none";
+                if (capturedControls) capturedControls.style.display = "flex";
+
+                document.getElementById("chamber-mode-label").textContent = "FRAME CAPTURED \u2022 AWAITING ANALYSIS";
+                updateWorkflowStep(3);
+            }, "image/jpeg", 0.92);
+        }
+
+        function retakeSampleFrame() {
+            capturedImageBlob = null;
+            activeScanResult = null;
+            const videoElem = document.getElementById("camera-stream");
+            const capturedImg = document.getElementById("captured-frame-img");
+            const liveControls = document.getElementById("live-controls");
+            const capturedControls = document.getElementById("captured-controls");
+            const toggleMaskBtn = document.getElementById("btn-toggle-mask");
+
+            if (capturedImg) capturedImg.style.display = "none";
+            if (videoElem && activeMediaStream) videoElem.style.display = "block";
+
+            if (liveControls) liveControls.style.display = "flex";
+            if (capturedControls) capturedControls.style.display = "none";
+            if (toggleMaskBtn) toggleMaskBtn.disabled = true;
+
+            document.getElementById("chamber-mode-label").textContent = "LIVE STREAM \u2022 365nm CHAMBER";
+            updateWorkflowStep(2);
+        }
+
+        function handleSampleFileUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById("working-canvas");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0);
+
+                    canvas.toBlob((blob) => {
+                        capturedImageBlob = blob;
+                        const capturedImg = document.getElementById("captured-frame-img");
+                        const videoElem = document.getElementById("camera-stream");
+                        const fallbackCard = document.getElementById("camera-fallback-card");
+                        const liveControls = document.getElementById("live-controls");
+                        const capturedControls = document.getElementById("captured-controls");
+
+                        if (fallbackCard) fallbackCard.style.display = "none";
+                        if (videoElem) videoElem.style.display = "none";
+                        if (capturedImg) {
+                            capturedImg.src = e.target.result;
+                            capturedImg.style.display = "block";
+                        }
+
+                        if (liveControls) liveControls.style.display = "none";
+                        if (capturedControls) capturedControls.style.display = "flex";
+
+                        document.getElementById("chamber-mode-label").textContent = "FILE LOADED \u2022 READY FOR BGYF";
+                        updateWorkflowStep(3);
+                    }, "image/jpeg", 0.92);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ==========================================
+        // STEP 4, 5 & 6: Image Analysis & Logging
+        // ==========================================
+        async function executeImageAnalysis() {
+            if (!capturedImageBlob || isAnalysisInProgress) return;
+
+            const unitId = GrainState.getSelectedUnitId() || 1;
+            const btn = document.getElementById("btn-run-analysis");
+            const btnText = document.getElementById("btn-analyze-text");
+            const toggleMaskBtn = document.getElementById("btn-toggle-mask");
+
+            isAnalysisInProgress = true;
+            if (btn) btn.disabled = true;
+            if (btnText) btnText.textContent = "Processing OpenCV HSV Mask...";
+            updateWorkflowStep(4);
+
+            try {
+                const res = await postContaminationScan(unitId, capturedImageBlob);
+
+                if (!res || !res.ok) {
+                    const errDetail = (res && res.data && res.data.message) ? res.data.message : "Analysis request rejected by server.";
+                    alert(`Inspection analysis error: ${errDetail}`);
+                    if (btn) btn.disabled = false;
+                    if (btnText) btnText.textContent = "Analyze Fluorescence (BGYF)";
+                    isAnalysisInProgress = false;
+                    return;
+                }
+
+                // Scan successfully processed and saved to database
+                const scanData = (res.data && res.data.scan) ? res.data.scan : res.data;
+                activeScanResult = scanData;
+                isShowingMask = false;
+
+                displayScreeningResult(scanData);
+                updateWorkflowStep(5);
+
+                if (toggleMaskBtn) toggleMaskBtn.disabled = false;
+                if (btn) btn.disabled = false;
+                if (btnText) btnText.textContent = "Analyze Fluorescence (BGYF)";
+                isAnalysisInProgress = false;
+
+                // Step 6: Refresh recent inspection logs
+                updateWorkflowStep(6);
+                await loadRecentScans();
+
+            } catch (err) {
+                console.error("Analysis execution failed:", err);
+                alert("Inspection pipeline failed to complete. Please check server logs.");
+                if (btn) btn.disabled = false;
+                if (btnText) btnText.textContent = "Analyze Fluorescence (BGYF)";
+                isAnalysisInProgress = false;
+            }
+        }
+
+        function displayScreeningResult(scan) {
+            if (!scan) return;
+
+            const areaValElem = document.getElementById("val-area-pct");
+            const statusSlot = document.getElementById("screening-status-slot");
+            const scanIdElem = document.getElementById("res-scan-id");
+            const tsElem = document.getElementById("res-timestamp");
+            const resultCard = document.getElementById("screening-result-card");
+            const capturedImg = document.getElementById("captured-frame-img");
+
+            const areaPct = scan.fluorescence_area_pct !== undefined ? scan.fluorescence_area_pct : 0.0;
+            const scanIdStr = scan.scan_id || `SCN-2026-${String(scan.id || 1).padStart(3, '0')}`;
+            const timeStr = scan.timestamp || new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+            // Determine screening class per project threshold contract
             let status = scan.screening_status;
             if (!status) {
                 if (areaPct < SCREENING_THRESHOLDS.clear_max) status = "Clear";
@@ -419,190 +669,90 @@
                 else status = "Positive";
             }
 
-            // Map status badge and card border color
-            let badgeClass = "risk-badge-safe";
-            let borderColor = "var(--color-risk-safe)";
+            let badgeCls = "risk-badge-safe";
+            let borderCol = "var(--color-risk-safe)";
             if (status === "Suspect") {
-                badgeClass = "risk-badge-medium";
-                borderColor = "var(--color-risk-medium)";
+                badgeCls = "risk-badge-medium";
+                borderCol = "var(--color-risk-medium)";
             } else if (status === "Positive") {
-                badgeClass = "risk-badge-high";
-                borderColor = "var(--color-risk-high)";
+                badgeCls = "risk-badge-high";
+                borderCol = "var(--color-risk-critical)";
             }
 
-            if (resultCard) resultCard.style.borderLeftColor = borderColor;
+            if (resultCard) resultCard.style.borderLeftColor = borderCol;
             if (statusSlot) {
-                statusSlot.innerHTML = `<span class="risk-badge ${badgeClass}" style="font-size: 13px;">${status}</span>`;
+                statusSlot.innerHTML = `<span class="risk-badge ${badgeCls} font-mono" style="font-size: 12px; padding: 3px 10px;">${status}</span>`;
             }
-            if (areaPctVal) {
-                areaPctVal.innerHTML = `${areaPct}<span class="metric-unit">%</span>`;
+            if (areaValElem) {
+                areaValElem.innerHTML = `${areaPct.toFixed(2)}<span class="metric-unit" style="font-size: 16px;">%</span>`;
             }
             if (scanIdElem) scanIdElem.textContent = scanIdStr;
-            if (tsElem) tsElem.textContent = scan.timestamp || "Today";
-            if (sampleIdLabel) sampleIdLabel.textContent = `Scan ID: ${scanIdStr}`;
+            if (tsElem) tsElem.textContent = timeStr;
 
-            // Show real image (raw or mask depending on toggle)
-            if (img && emptyPrompt) {
-                emptyPrompt.style.display = "none";
-                img.style.display = "block";
-                const imgUrl = isShowingMask
-                    ? (scan.mask_url || `/api/scan-image/${scan.id}?type=mask`)
-                    : (scan.image_url || `/api/scan-image/${scan.id}?type=raw`);
-                img.src = imgUrl;
-            }
-
-            if (toggleBtn) {
-                toggleBtn.disabled = false;
-                const toggleLabel = document.getElementById("toggle-mask-label");
-                if (toggleLabel) toggleLabel.textContent = isShowingMask ? "Show Raw Frame" : "Show HSV Mask";
-            }
-
-            if (activeViewTag) {
-                activeViewTag.textContent = isShowingMask ? "HSV Fluorescence Mask" : "Raw UV Frame";
-                activeViewTag.style.background = isShowingMask ? "var(--color-brand-green-light)" : "#F1F5F9";
-                activeViewTag.style.color = isShowingMask ? "var(--color-brand-green)" : "var(--color-muted)";
+            // Display server rendered image if available
+            if (capturedImg && scan.image_url) {
+                capturedImg.src = isShowingMask
+                    ? `${API_BASE_URL.replace(/\/api\/?$/, '')}${scan.mask_url}`
+                    : `${API_BASE_URL.replace(/\/api\/?$/, '')}${scan.image_url}`;
             }
         }
 
-        // Requirement 2: Toggle beside image between raw frame and HSV fluorescence mask overlay
         function toggleMaskOverlay() {
-            if (!currentScan) return;
+            if (!activeScanResult) return;
             isShowingMask = !isShowingMask;
-            displayScanResult(currentScan);
-        }
+            const toggleLabel = document.getElementById("toggle-mask-label");
+            const capturedImg = document.getElementById("captured-frame-img");
 
-        // Requirement 1: "Scan New Sample" calls POST /api/scan-request and shows stepper polling every 2s
-        async function triggerScanSample() {
-            const btn = document.getElementById("btn-scan-sample");
-            const btnText = document.getElementById("scan-btn-text");
-            const stepperCard = document.getElementById("stepper-card");
-            const errorBanner = document.getElementById("bridge-error-banner");
-            const unitId = GrainState.getSelectedUnitId() || 1;
+            if (toggleLabel) {
+                toggleLabel.textContent = isShowingMask ? "Show Raw Frame" : "Show HSV Mask";
+            }
 
-            if (errorBanner) errorBanner.style.display = "none";
-
-            // Disable button while a scan runs
-            btn.disabled = true;
-            btn.style.opacity = "0.6";
-            if (btnText) btnText.textContent = "Scanning...";
-
-            if (stepperCard) stepperCard.style.display = "block";
-            updateStepperUI("Requested");
-
-            try {
-                // Call POST /api/scan-request
-                const res = await requestContaminationScan(unitId);
-
-                if (!res.ok || (res.data && res.data.error === "bridge_offline")) {
-                    showBridgeOfflineError(res.data ? res.data.message : "Hardware scan bridge offline.");
-                    resetScanButton();
-                    if (stepperCard) stepperCard.style.display = "none";
-                    return;
+            if (capturedImg && activeScanResult) {
+                const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+                if (isShowingMask && activeScanResult.mask_url) {
+                    capturedImg.src = `${baseUrl}${activeScanResult.mask_url}`;
+                    document.getElementById("chamber-mode-label").textContent = "BGYF SEGMENTED MASK \u2022 HSV CONTOUR";
+                } else if (activeScanResult.image_url) {
+                    capturedImg.src = `${baseUrl}${activeScanResult.image_url}`;
+                    document.getElementById("chamber-mode-label").textContent = "RAW 365nm UV CAPTURE \u2022 DARKFIELD";
                 }
-
-                const jobId = res.data && res.data.job_id;
-                if (!jobId) {
-                    showBridgeOfflineError("Invalid scan job response from bridge.");
-                    resetScanButton();
-                    return;
-                }
-
-                // Poll every 2s through steps: Requested, UV on, Capturing, Analysing, Done
-                if (activePollingTimer) clearInterval(activePollingTimer);
-
-                activePollingTimer = setInterval(async () => {
-                    const statusRes = await pollScanStatus(jobId);
-                    if (!statusRes) return;
-
-                    const step = statusRes.step || "Requested";
-                    updateStepperUI(step);
-
-                    if (step === "Done") {
-                        clearInterval(activePollingTimer);
-                        activePollingTimer = null;
-
-                        if (statusRes.scan) {
-                            currentScan = statusRes.scan;
-                            isShowingMask = false;
-                            displayScanResult(statusRes.scan);
-                            await loadRecentScansList(unitId);
-                        }
-
-                        // Re-enable button after slight delay
-                        setTimeout(() => {
-                            resetScanButton();
-                        }, 1200);
-                    }
-                }, 2000);
-
-            } catch (err) {
-                console.error("Scan request failed:", err);
-                showBridgeOfflineError("Network error contacting scan bridge.");
-                resetScanButton();
-                if (stepperCard) stepperCard.style.display = "none";
             }
         }
 
-        function updateStepperUI(activeStep) {
-            const stepOrder = ["Requested", "UV on", "Capturing", "Analysing", "Done"];
-            const activeIdx = stepOrder.indexOf(activeStep);
-
-            const stepIds = ["requested", "uv", "capturing", "analysing", "done"];
-
-            stepIds.forEach((id, idx) => {
-                const item = document.getElementById(`step-${id}`);
-                const circle = document.getElementById(`circle-${id}`);
-                if (!item || !circle) return;
-
-                if (idx < activeIdx) {
-                    item.className = "step-item completed";
-                    circle.innerHTML = "✓";
-                } else if (idx === activeIdx) {
-                    item.className = "step-item active";
-                    circle.innerHTML = idx + 1;
+        function updateWorkflowStep(stepNumber) {
+            for (let i = 1; i <= 6; i++) {
+                const el = document.getElementById(`step-${i}`);
+                if (!el) continue;
+                if (i < stepNumber) {
+                    el.className = "workflow-step completed";
+                    el.querySelector(".workflow-step-num").innerHTML = "&#10003;";
+                } else if (i === stepNumber) {
+                    el.className = "workflow-step active";
+                    el.querySelector(".workflow-step-num").textContent = i;
                 } else {
-                    item.className = "step-item";
-                    circle.innerHTML = idx + 1;
-                }
-            });
-
-            // Update connecting dividers
-            for (let i = 1; i <= 4; i++) {
-                const div = document.getElementById(`div-${i}`);
-                if (div) {
-                    if (i <= activeIdx) {
-                        div.className = "step-divider filled";
-                    } else {
-                        div.className = "step-divider";
-                    }
+                    el.className = "workflow-step";
+                    el.querySelector(".workflow-step-num").textContent = i;
                 }
             }
         }
 
-        function showBridgeOfflineError(msg) {
-            const banner = document.getElementById("bridge-error-banner");
-            const msgElem = document.getElementById("bridge-error-msg");
-            if (msgElem && msg) msgElem.textContent = msg;
-            if (banner) banner.style.display = "block";
-        }
-
-        function dismissBridgeError() {
-            const banner = document.getElementById("bridge-error-banner");
-            if (banner) banner.style.display = "none";
-        }
-
-        function resetScanButton() {
-            const btn = document.getElementById("btn-scan-sample");
-            const btnText = document.getElementById("scan-btn-text");
-            if (btn) {
-                btn.disabled = false;
-                btn.style.opacity = "1";
+        async function loadLatestUnitScan() {
+            const unitId = GrainState.getSelectedUnitId() || 1;
+            try {
+                const res = await fetchLatestScan(unitId);
+                if (res && res.scan) {
+                    activeScanResult = res.scan;
+                    displayScreeningResult(res.scan);
+                    const toggleMaskBtn = document.getElementById("btn-toggle-mask");
+                    if (toggleMaskBtn) toggleMaskBtn.disabled = false;
+                }
+            } catch (err) {
+                console.warn("Could not load latest scan:", err);
             }
-            if (btnText) btnText.textContent = "Scan New Sample";
         }
 
-        // Requirement 5: "Recent scans" list (last 5) with thumbnail, time, %, status
-        async function loadRecentScansList(unitId) {
+        async function loadRecentScans() {
+            const unitId = GrainState.getSelectedUnitId() || 1;
             const container = document.getElementById("recent-scans-list");
             if (!container) return;
 
@@ -613,36 +763,37 @@
                 if (scans.length === 0) {
                     container.innerHTML = `
                         <div style="padding: 24px; text-align: center; color: var(--color-muted); font-size: 13px;">
-                            No recent scans yet for this unit.
+                            No previous scans recorded for this unit.
                         </div>
                     `;
                     return;
                 }
 
                 container.innerHTML = scans.map((s, idx) => {
-                    const scanIdStr = s.scan_id || `SCN-2026-${s.id ? String(s.id).padStart(3, '0') : idx + 1}`;
-                    const timeStr = s.timestamp ? s.timestamp.split(" ")[1] || s.timestamp : "Today";
-                    const areaPct = s.fluorescence_area_pct !== undefined ? s.fluorescence_area_pct : 0.42;
+                    const scanIdStr = s.scan_id || `SCN-2026-${String(s.id || idx + 1).padStart(3, '0')}`;
+                    const timeStr = s.timestamp ? s.timestamp.split(" ")[1] || s.timestamp : "Recorded";
+                    const areaPct = s.fluorescence_area_pct !== undefined ? Number(s.fluorescence_area_pct).toFixed(2) : "0.00";
 
                     let status = s.screening_status || "Clear";
                     let badgeClass = "risk-badge-safe";
                     if (status === "Suspect") badgeClass = "risk-badge-medium";
                     else if (status === "Positive") badgeClass = "risk-badge-high";
 
-                    const thumbUrl = s.image_url || `/api/scan-image/${s.id}?type=raw`;
+                    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+                    const thumbUrl = s.image_url ? `${baseUrl}${s.image_url}` : "";
 
                     return `
-                        <div class="recent-scan-item" onclick="selectRecentScan(${s.id})">
+                        <div class="recent-scan-row" onclick="viewHistoricalScan(${s.id})">
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <img src="${thumbUrl}" class="recent-thumbnail" alt="Thumb" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'44\\' fill=\\'%23111827\\'><rect width=\\'44\\' height=\\'44\\' fill=\\'%230F172A\\'/></svg>'" />
+                                <img src="${thumbUrl}" class="scan-thumb" alt="Sample" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'44\\' fill=\\'%230b1410\\'><rect width=\\'44\\' height=\\'44\\' fill=\\'%230b1410\\'/></svg>'" />
                                 <div>
-                                    <div style="font-size: 13px; font-weight: 700; color: var(--color-text);">${scanIdStr}</div>
+                                    <div class="font-mono" style="font-size: 13px; font-weight: 700; color: var(--color-text);">${scanIdStr}</div>
                                     <div style="font-size: 11px; color: var(--color-muted);">${timeStr}</div>
                                 </div>
                             </div>
-                            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                <span style="font-size: 13px; font-weight: 700; color: var(--color-text);">${areaPct}%</span>
-                                <span class="risk-badge ${badgeClass}" style="font-size: 10px; padding: 1px 6px;">${status}</span>
+                            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                                <span class="font-mono" style="font-size: 13px; font-weight: 700; color: var(--color-text);">${areaPct}%</span>
+                                <span class="risk-badge ${badgeClass} font-mono" style="font-size: 10px; padding: 1px 6px;">${status}</span>
                             </div>
                         </div>
                     `;
@@ -653,21 +804,34 @@
             }
         }
 
-        async function selectRecentScan(scanId) {
+        async function viewHistoricalScan(scanId) {
+            const unitId = GrainState.getSelectedUnitId() || 1;
             try {
-                const res = await fetch(`${API_BASE_URL}/scan-image/${scanId}?type=raw`);
-                if (res.ok) {
-                    const unitId = GrainState.getSelectedUnitId() || 1;
-                    const recentRes = await fetchRecentScans(unitId, 10);
-                    const matching = recentRes && recentRes.scans && recentRes.scans.find(s => s.id === scanId);
-                    if (matching) {
-                        currentScan = matching;
-                        isShowingMask = false;
-                        displayScanResult(matching);
+                const res = await fetchRecentScans(unitId, 10);
+                const matching = res && res.scans && res.scans.find(s => s.id === scanId);
+                if (matching) {
+                    activeScanResult = matching;
+                    isShowingMask = false;
+                    const capturedImg = document.getElementById("captured-frame-img");
+                    const videoElem = document.getElementById("camera-stream");
+                    const fallbackCard = document.getElementById("camera-fallback-card");
+                    const toggleMaskBtn = document.getElementById("btn-toggle-mask");
+
+                    if (fallbackCard) fallbackCard.style.display = "none";
+                    if (videoElem) videoElem.style.display = "none";
+                    if (capturedImg) {
+                        const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+                        capturedImg.src = matching.image_url ? `${baseUrl}${matching.image_url}` : "";
+                        capturedImg.style.display = "block";
                     }
+
+                    if (toggleMaskBtn) toggleMaskBtn.disabled = false;
+                    document.getElementById("chamber-mode-label").textContent = `ARCHIVED SCAN \u2022 ${matching.scan_id || 'LOGGED'}`;
+                    displayScreeningResult(matching);
+                    updateWorkflowStep(5);
                 }
-            } catch (e) {
-                console.warn("Error selecting scan:", e);
+            } catch (err) {
+                console.warn("Error viewing historical scan:", err);
             }
         }
     </script>

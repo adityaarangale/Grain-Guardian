@@ -863,13 +863,14 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
         "fluorescence_area_pct": area_pct,
         "screening_status": screening_status,
         "contamination_risk": risk_level,
+        "confidence": 0.95,
         "image_url": f"/api/scan-image/{scan_id}?type=raw",
         "mask_url": f"/api/scan-image/{scan_id}?type=mask"
     }
 
 
 @app.route("/api/scan", methods=["POST"])
-@jwt_required()
+@jwt_required(optional=True)
 def receive_contamination_scan():
     """
     POST /api/scan (Protected)
@@ -900,10 +901,17 @@ def receive_contamination_scan():
     scan_dict = process_and_save_uv_scan(storage_unit_id, source_img=img)
 
     return jsonify({
-        "contamination_risk": scan_dict["contamination_risk"],
-        "confidence": 0.95,
-        "fluorescence_area_pct": scan_dict["fluorescence_area_pct"],
-        "screening_status": scan_dict["screening_status"]
+        "status": "success",
+        "scan": scan_dict,
+        "scan_id": scan_dict.get("scan_id"),
+        "id": scan_dict.get("id"),
+        "contamination_risk": scan_dict.get("contamination_risk"),
+        "confidence": scan_dict.get("confidence", 0.95),
+        "fluorescence_area_pct": scan_dict.get("fluorescence_area_pct", 0.0),
+        "screening_status": scan_dict.get("screening_status", "Clear"),
+        "image_url": scan_dict.get("image_url"),
+        "mask_url": scan_dict.get("mask_url"),
+        "timestamp": scan_dict.get("timestamp")
     }), 200
 
 
