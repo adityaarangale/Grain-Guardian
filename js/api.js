@@ -6,10 +6,17 @@
 
 const API_BASE_URL = (function () {
     if (typeof window !== "undefined") {
-        if (window.GRAIN_GUARDIAN_API_URL) return window.GRAIN_GUARDIAN_API_URL;
+        if (window.GRAIN_GUARDIAN_API_URL) {
+            let u = window.GRAIN_GUARDIAN_API_URL.replace(/\/+$/, "");
+            return u.endsWith("/api") ? u : `${u}/api`;
+        }
         try {
             const stored = localStorage.getItem("gg_api_url");
-            if (stored) return stored;
+            // Disallow stale localhost overrides if hosted on GitHub Pages
+            if (stored && (!window.location.hostname.includes("github.io") || !stored.includes("localhost"))) {
+                let u = stored.trim().replace(/\/+$/, "");
+                return u.endsWith("/api") ? u : `${u}/api`;
+            }
         } catch (e) { }
 
         // Local development or file opening
@@ -46,6 +53,31 @@ function logoutUser() {
     window.location.href = isInsidePagesFolder ? "../index.html" : "index.html";
 }
 
+/**
+ * Safely parse JSON from fetch Response without throwing SyntaxError on HTML error pages.
+ */
+async function safeParseJson(response) {
+    try {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (jsonErr) {
+            console.warn("Non-JSON server response received:", text.slice(0, 150));
+            return {
+                status: "error",
+                message: response.ok
+                    ? "Unexpected non-JSON response from server."
+                    : `Server returned error (${response.status}). If Render was sleeping, it may take 30-50s to wake up.`
+            };
+        }
+    } catch (readErr) {
+        return {
+            status: "error",
+            message: "Unable to read response from server."
+        };
+    }
+}
+
 async function ensureAuthToken() {
     if (authToken) return authToken;
     try {
@@ -55,7 +87,7 @@ async function ensureAuthToken() {
             body: JSON.stringify({ email: "manager_test@facility.com", password: "Password123!" })
         });
         if (response.ok) {
-            const data = await response.json();
+            const data = await safeParseJson(response);
             if (data.access_token) {
                 setAuthToken(data.access_token);
                 return data.access_token;
@@ -85,14 +117,14 @@ async function signupUser(name, email, password) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, email, password })
         });
-        const data = await response.json();
+        const data = await safeParseJson(response);
         if (response.ok && data.access_token) {
             setAuthToken(data.access_token);
         }
         return { ok: response.ok, status: response.status, data };
     } catch (error) {
         console.error("Signup network error:", error);
-        return { ok: false, data: { message: "Network error connecting to backend server." } };
+        return { ok: false, data: { message: "Network error connecting to backend server. Please verify backend is running." } };
     }
 }
 
@@ -106,14 +138,14 @@ async function loginUser(email, password) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
         });
-        const data = await response.json();
+        const data = await safeParseJson(response);
         if (response.ok && data.access_token) {
             setAuthToken(data.access_token);
         }
         return { ok: response.ok, status: response.status, data };
     } catch (error) {
         console.error("Login network error:", error);
-        return { ok: false, data: { message: "Network error connecting to backend server." } };
+        return { ok: false, data: { message: "Network error connecting to backend server. Please verify backend is running." } };
     }
 }
 

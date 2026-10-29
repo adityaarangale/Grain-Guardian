@@ -33,7 +33,11 @@ jobs:
       run: |
         python backend/init_db.py
 
-    - name: Run Backend Integration & Auth Tests
+    - name: Run Auth & Missing Table Regression Tests
+      run: |
+        python backend/test_auth_regression.py
+
+    - name: Run Backend Integration & API Tests
       run: |
         python backend/app.py &
         sleep 3

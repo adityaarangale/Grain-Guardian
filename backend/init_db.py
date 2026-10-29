@@ -1,12 +1,38 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "grain_guardian.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "models", "schema.sql")
 
-def init_db():
-    print(f"Initializing SQLite database at: {DB_PATH}")
-    conn = sqlite3.connect(DB_PATH)
+def get_db_path(custom_path=None):
+    """
+    Resolve the SQLite database path.
+    Priority:
+    1. Explicit custom_path argument
+    2. DATABASE_PATH environment variable (for Render Persistent Disk, e.g. /data/grain_guardian.db)
+    3. Default local path (backend/grain_guardian.db)
+    """
+    if custom_path:
+        return os.path.abspath(custom_path)
+    env_path = os.environ.get("DATABASE_PATH")
+    if env_path:
+        return os.path.abspath(env_path)
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "grain_guardian.db"))
+
+DB_PATH = get_db_path()
+
+def init_db(db_path=None):
+    """
+    Initialize SQLite database tables from schema.sql.
+    Safe to run repeatedly (uses CREATE TABLE IF NOT EXISTS and checks migrations).
+    """
+    target_path = get_db_path(db_path)
+    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+
+    conn = sqlite3.connect(target_path, timeout=30.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    except Exception:
+        pass
     cursor = conn.cursor()
 
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
@@ -14,7 +40,7 @@ def init_db():
 
     cursor.executescript(schema_sql)
     
-    # Check and add missing columns to scan_results if needed
+    # Migrations for existing databases: ensure scan_results columns exist
     cursor.execute("PRAGMA table_info(scan_results)")
     existing_cols = [row[1] for row in cursor.fetchall()]
     if "mask_path" not in existing_cols:
@@ -26,7 +52,8 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("Database schema successfully created/verified!")
+    return target_path
 
 if __name__ == "__main__":
-    init_db()
+    path = init_db()
+    print(f"Database schema successfully initialized/verified at: {path}")

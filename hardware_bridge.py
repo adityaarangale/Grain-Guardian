@@ -73,7 +73,10 @@ def get_config():
         baud = int(os.getenv("BAUD", "9600"))
     except ValueError:
         baud = 9600
-    api_url = os.getenv("API_URL", "http://localhost:5000").rstrip("/")
+    api_url = os.getenv(
+        "API_URL",
+        "https://grain-guardian-api.onrender.com"
+    ).rstrip("/")    
     simulate_raw = os.getenv("SIMULATE", "1").strip().lower()
     simulate = 1 if simulate_raw in ("1", "true", "yes", "simulation") else 0
 

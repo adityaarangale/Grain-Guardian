@@ -48,21 +48,67 @@ except ImportError as e:
     def predict_contamination(path):
         return {"contamination_risk": "Low", "confidence": 0.91}
 
+# Add backend directory to sys.path to ensure local imports work in all execution contexts
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+from init_db import get_db_path, init_db
+from seed_db import seed_database
+
 app = Flask(__name__)
-CORS(app)  # Enable Cross-Origin Resource Sharing for frontend access
+
+# Allowed Origins for Production (GitHub Pages) and Local Development
+ALLOWED_ORIGINS = [
+    "https://adityaarangale.github.io",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000"
+]
+env_cors = os.environ.get("CORS_ORIGINS")
+if env_cors:
+    for o in env_cors.split(","):
+        o = o.strip()
+        if o and o not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(o)
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"]
+)
 
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "grain_guardian.db")
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
+DB_PATH = get_db_path()
+UPLOAD_FOLDER = os.path.join(BACKEND_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA foreign_keys=ON;")
+    except Exception:
+        pass
     return conn
+
+# Reliable Database Initialization on Application Startup (Runs on Gunicorn, Render, & Local)
+def ensure_db_initialized():
+    try:
+        init_db(DB_PATH)
+        seed_database(DB_PATH)
+        print(f"[Grain Guardian] Database initialized & verified at: {DB_PATH}")
+    except Exception as e:
+        print(f"[Grain Guardian ERROR] Failed to initialize database: {e}", file=sys.stderr)
+
+ensure_db_initialized()
 
 # Helper to validate input dictionary keys
 def validate_json_fields(data, required_fields):
@@ -186,6 +232,47 @@ def health_check():
 
 
 
+# Global JSON error handlers for API endpoints to prevent HTML error leak
+@app.errorhandler(400)
+def handle_400(err):
+    if request.path.startswith("/api/"):
+        msg = getattr(err, "description", "Bad request.")
+        return jsonify({"status": "error", "message": msg}), 400
+    return err
+
+@app.errorhandler(401)
+def handle_401(err):
+    if request.path.startswith("/api/"):
+        msg = getattr(err, "description", "Unauthorized access.")
+        return jsonify({"status": "error", "message": msg}), 401
+    return err
+
+@app.errorhandler(404)
+def handle_404(err):
+    if request.path.startswith("/api/"):
+        return jsonify({"status": "error", "message": f"Endpoint not found: {request.path}"}), 404
+    return err
+
+@app.errorhandler(405)
+def handle_405(err):
+    if request.path.startswith("/api/"):
+        return jsonify({"status": "error", "message": f"Method {request.method} not allowed on {request.path}"}), 405
+    return err
+
+@app.errorhandler(500)
+def handle_500(err):
+    if request.path.startswith("/api/"):
+        return jsonify({"status": "error", "message": "Internal server error. Please retry in a moment."}), 500
+    return err
+
+@app.errorhandler(Exception)
+def handle_global_exception(err):
+    print(f"[Global Exception] {request.method} {request.path}: {err}", file=sys.stderr)
+    if request.path.startswith("/api/"):
+        return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
+    raise err
+
+
 # ==========================================
 # Authentication Routes
 # ==========================================
@@ -196,21 +283,22 @@ def signup():
     POST /api/auth/signup
     Accepts: { "name": "...", "email": "...", "password": "..." }
     """
-    data = request.get_json(silent=True)
-    is_valid, err_msg = validate_json_fields(data, ["name", "email", "password"])
-    if not is_valid:
-        return jsonify({"status": "error", "message": err_msg}), 400
-
-    name = data["name"].strip()
-    email = data["email"].strip().lower()
-    password = data["password"]
-
-    if not name or not email or not password:
-        return jsonify({"status": "error", "message": "Name, email, and password cannot be empty."}), 400
-
-    pw_hash = bcrypt.generate_password_hash(password).decode("utf-8")
-
+    conn = None
     try:
+        data = request.get_json(silent=True)
+        is_valid, err_msg = validate_json_fields(data, ["name", "email", "password"])
+        if not is_valid:
+            return jsonify({"status": "error", "message": err_msg}), 400
+
+        name = data["name"].strip()
+        email = data["email"].strip().lower()
+        password = data["password"]
+
+        if not name or not email or not password:
+            return jsonify({"status": "error", "message": "Name, email, and password cannot be empty."}), 400
+
+        pw_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -219,7 +307,6 @@ def signup():
         """, (name, email, pw_hash))
         user_id = cursor.lastrowid
         conn.commit()
-        conn.close()
 
         access_token = create_access_token(identity=str(user_id))
         return jsonify({
@@ -231,8 +318,16 @@ def signup():
 
     except sqlite3.IntegrityError:
         return jsonify({"status": "error", "message": "An account with this email already exists."}), 400
+    except sqlite3.OperationalError as e:
+        print(f"[DB OperationalError in signup]: {e}", file=sys.stderr)
+        ensure_db_initialized()
+        return jsonify({"status": "error", "message": "Database was initializing. Please try registering again."}), 503
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Signup failed: {str(e)}"}), 500
+        print(f"[Signup Error]: {e}", file=sys.stderr)
+        return jsonify({"status": "error", "message": "Signup failed. Please try again."}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -241,30 +336,44 @@ def login():
     POST /api/auth/login
     Accepts: { "email": "...", "password": "..." }
     """
-    data = request.get_json(silent=True)
-    is_valid, err_msg = validate_json_fields(data, ["email", "password"])
-    if not is_valid:
-        return jsonify({"status": "error", "message": err_msg}), 400
+    conn = None
+    try:
+        data = request.get_json(silent=True)
+        is_valid, err_msg = validate_json_fields(data, ["email", "password"])
+        if not is_valid:
+            return jsonify({"status": "error", "message": err_msg}), 400
 
-    email = data["email"].strip().lower()
-    password = data["password"]
+        email = data["email"].strip().lower()
+        password = data["password"]
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
-    user = cursor.fetchone()
-    conn.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
 
-    if not user or not bcrypt.check_password_hash(user["password_hash"], password):
-        return jsonify({"status": "error", "message": "Invalid email or password."}), 401
+        if not user or not bcrypt.check_password_hash(user["password_hash"], password):
+            return jsonify({"status": "error", "message": "Invalid email or password."}), 401
 
-    access_token = create_access_token(identity=str(user["id"]))
-    return jsonify({
-        "status": "success",
-        "message": "Login successful.",
-        "access_token": access_token,
-        "user": {"id": user["id"], "name": user["name"], "email": user["email"]}
-    }), 200
+        access_token = create_access_token(identity=str(user["id"]))
+        return jsonify({
+            "status": "success",
+            "message": "Login successful.",
+            "access_token": access_token,
+            "user": {"id": user["id"], "name": user["name"], "email": user["email"]}
+        }), 200
+    except sqlite3.OperationalError as e:
+        print(f"[DB OperationalError in login]: {e}", file=sys.stderr)
+        ensure_db_initialized()
+        return jsonify({
+            "status": "error",
+            "message": "Database was initializing. Please try logging in again."
+        }), 503
+    except Exception as e:
+        print(f"[Login Error]: {e}", file=sys.stderr)
+        return jsonify({"status": "error", "message": "An error occurred during login."}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -274,20 +383,32 @@ def get_current_user():
     GET /api/auth/me (Protected Route)
     Returns logged in user details.
     """
-    current_user_id = get_jwt_identity()
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, role, created_at FROM users WHERE id = ?", (current_user_id,))
-    user = cursor.fetchone()
-    conn.close()
+    conn = None
+    try:
+        current_user_id = get_jwt_identity()
+        try:
+            uid = int(current_user_id)
+        except (ValueError, TypeError):
+            uid = current_user_id
 
-    if not user:
-        return jsonify({"status": "error", "message": "User not found."}), 404
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, email, role, created_at FROM users WHERE id = ?", (uid,))
+        user = cursor.fetchone()
 
-    return jsonify({
-        "status": "success",
-        "user": dict(user)
-    }), 200
+        if not user:
+            return jsonify({"status": "error", "message": "User not found."}), 404
+
+        return jsonify({
+            "status": "success",
+            "user": dict(user)
+        }), 200
+    except Exception as e:
+        print(f"[Me Error]: {e}", file=sys.stderr)
+        return jsonify({"status": "error", "message": "Failed to fetch user profile."}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 def check_and_generate_alerts(cursor, storage_unit_id, grain_type, temperature, humidity, gas_index, moisture, prediction_prob=None, prediction_risk=None):
@@ -458,6 +579,7 @@ def receive_sensor_data():
     if not is_valid:
         return jsonify({"status": "error", "message": err_msg}), 400
 
+    conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -485,7 +607,6 @@ def receive_sensor_data():
         )
 
         conn.commit()
-        conn.close()
 
         return jsonify({
             "status": "success",
@@ -494,7 +615,15 @@ def receive_sensor_data():
         }), 201
 
     except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
         return jsonify({"status": "error", "message": f"Database insertion error: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route("/api/predict/<int:storage_unit_id>", methods=["GET"])
@@ -503,84 +632,95 @@ def get_spoilage_prediction(storage_unit_id):
     """
     GET /api/predict/<storage_unit_id> (Protected)
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    # Fetch storage unit info
-    cursor.execute("SELECT * FROM storage_units WHERE id = ?", (storage_unit_id,))
-    unit = cursor.fetchone()
-    grain_type = unit["grain_type"] if unit else "wheat"
+        # Fetch storage unit info
+        cursor.execute("SELECT * FROM storage_units WHERE id = ?", (storage_unit_id,))
+        unit = cursor.fetchone()
+        grain_type = unit["grain_type"] if unit else "wheat"
 
-    # Fetch latest sensor reading
-    cursor.execute("""
-        SELECT * FROM sensor_readings 
-        WHERE storage_unit_id = ? 
-        ORDER BY timestamp DESC LIMIT 1
-    """, (storage_unit_id,))
-    reading = cursor.fetchone()
-
-    if not reading:
-        conn.close()
-        return jsonify({
-            "status": "error",
-            "message": f"No sensor readings found for storage_unit_id {storage_unit_id}. Post sensor data first."
-        }), 404
-
-    sensor_dict = {
-        "storage_unit_id": storage_unit_id,
-        "grain_type": grain_type,
-        "temperature": reading["temperature"],
-        "humidity": reading["humidity"],
-        "gas_index": reading["gas_index"],
-        "moisture": reading["moisture"]
-    }
-
-    # Call AI Model function
-    prediction_result = predict_spoilage(sensor_dict)
-
-    # Save prediction to DB
-    cursor.execute("""
-        INSERT INTO predictions 
-        (storage_unit_id, risk_level, spoilage_probability, safe_days_remaining, recommendation)
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        storage_unit_id,
-        prediction_result["risk_level"],
-        prediction_result["spoilage_probability"],
-        prediction_result["safe_days_remaining"],
-        prediction_result["recommendation"]
-    ))
-
-    # Trigger Critical Risk alert if prediction is Critical
-    if prediction_result["risk_level"] == "Critical":
+        # Fetch latest sensor reading
         cursor.execute("""
-            SELECT id FROM alerts
-            WHERE storage_unit_id = ? AND alert_type = 'Critical Risk' AND acknowledged = 0
-            AND timestamp >= datetime('now', '-10 minutes')
+            SELECT * FROM sensor_readings 
+            WHERE storage_unit_id = ? 
+            ORDER BY timestamp DESC LIMIT 1
         """, (storage_unit_id,))
-        if not cursor.fetchone():
+        reading = cursor.fetchone()
+
+        if not reading:
+            return jsonify({
+                "status": "error",
+                "message": f"No sensor readings found for storage_unit_id {storage_unit_id}. Post sensor data first."
+            }), 404
+
+        sensor_dict = {
+            "storage_unit_id": storage_unit_id,
+            "grain_type": grain_type,
+            "temperature": reading["temperature"],
+            "humidity": reading["humidity"],
+            "gas_index": reading["gas_index"],
+            "moisture": reading["moisture"]
+        }
+
+        # Call AI Model function
+        prediction_result = predict_spoilage(sensor_dict)
+
+        # Save prediction to DB
+        cursor.execute("""
+            INSERT INTO predictions 
+            (storage_unit_id, risk_level, spoilage_probability, safe_days_remaining, recommendation)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            storage_unit_id,
+            prediction_result["risk_level"],
+            prediction_result["spoilage_probability"],
+            prediction_result["safe_days_remaining"],
+            prediction_result["recommendation"]
+        ))
+
+        # Trigger Critical Risk alert if prediction is Critical
+        if prediction_result["risk_level"] == "Critical":
             cursor.execute("""
-                INSERT INTO alerts (storage_unit_id, alert_type, severity, title, message, reading_values, acknowledged, timestamp)
-                VALUES (?, 'Critical Risk', 'Critical', 'Critical Risk', ?, ?, 0, CURRENT_TIMESTAMP)
-            """, (
-                storage_unit_id,
-                f"Predictive analysis detected critical spoilage probability ({prediction_result['spoilage_probability']*100:.0f}%) for {grain_type.capitalize()}.",
-                json.dumps({
-                    "temperature": round(reading["temperature"], 1),
-                    "humidity": round(reading["humidity"], 1),
-                    "gas_index": reading["gas_index"],
-                    "moisture": round(reading["moisture"], 1),
-                    "spoilage_probability": prediction_result["spoilage_probability"],
-                    "grain": grain_type.capitalize()
-                })
-            ))
+                SELECT id FROM alerts
+                WHERE storage_unit_id = ? AND alert_type = 'Critical Risk' AND acknowledged = 0
+                AND timestamp >= datetime('now', '-10 minutes')
+            """, (storage_unit_id,))
+            if not cursor.fetchone():
+                cursor.execute("""
+                    INSERT INTO alerts (storage_unit_id, alert_type, severity, title, message, reading_values, acknowledged, timestamp)
+                    VALUES (?, 'Critical Risk', 'Critical', 'Critical Risk', ?, ?, 0, CURRENT_TIMESTAMP)
+                """, (
+                    storage_unit_id,
+                    f"Predictive analysis detected critical spoilage probability ({prediction_result['spoilage_probability']*100:.0f}%) for {grain_type.capitalize()}.",
+                    json.dumps({
+                        "temperature": round(reading["temperature"], 1),
+                        "humidity": round(reading["humidity"], 1),
+                        "gas_index": reading["gas_index"],
+                        "moisture": round(reading["moisture"], 1),
+                        "spoilage_probability": prediction_result["spoilage_probability"],
+                        "grain": grain_type.capitalize()
+                    })
+                ))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
-    # Return prediction contract including range, confidence, inputs, and trend
-    res_payload = dict(prediction_result)
-    return jsonify(res_payload), 200
+        # Return prediction contract including range, confidence, inputs, and trend
+        res_payload = dict(prediction_result)
+        return jsonify(res_payload), 200
+
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return jsonify({"status": "error", "message": f"Prediction error: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 SCREENING_THRESHOLDS = {
@@ -664,50 +804,54 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
     cv2.imwrite(mask_path, blended)
 
     # Insert into database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO scan_results 
-        (storage_unit_id, image_path, contamination_risk, confidence, fluorescence_area_pct, screening_status, mask_path)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        storage_unit_id,
-        raw_path,
-        risk_level,
-        0.95,
-        area_pct,
-        screening_status,
-        mask_path
-    ))
-    scan_id = cursor.lastrowid
-
-    # If Positive, record Scan Positive alert
-    if screening_status == "Positive":
-        cursor.execute("SELECT grain_type FROM storage_units WHERE id = ?", (storage_unit_id,))
-        u = cursor.fetchone()
-        grain_name = (u["grain_type"] if u and u["grain_type"] else "Grain").capitalize()
-        cursor.execute("SELECT temperature, humidity, gas_index, moisture FROM sensor_readings WHERE storage_unit_id = ? ORDER BY id DESC LIMIT 1", (storage_unit_id,))
-        r = cursor.fetchone()
-        rv = {
-            "temperature": round(r["temperature"], 1) if r else 28.0,
-            "humidity": round(r["humidity"], 1) if r else 70.0,
-            "gas_index": r["gas_index"] if r else 150,
-            "moisture": round(r["moisture"], 1) if r else 14.5,
-            "fluorescence_area_pct": area_pct,
-            "grain": grain_name,
-            "threshold": 5.0
-        }
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO alerts (storage_unit_id, alert_type, severity, title, message, reading_values, acknowledged, timestamp)
-            VALUES (?, 'Scan Positive', 'Critical', 'Scan Positive', ?, ?, 0, CURRENT_TIMESTAMP)
+            INSERT INTO scan_results 
+            (storage_unit_id, image_path, contamination_risk, confidence, fluorescence_area_pct, screening_status, mask_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             storage_unit_id,
-            f"UV contamination screening detected {area_pct:.1f}% optical emission area, indicating suspect aflatoxin contamination in {grain_name}.",
-            json.dumps(rv)
+            raw_path,
+            risk_level,
+            0.95,
+            area_pct,
+            screening_status,
+            mask_path
         ))
+        scan_id = cursor.lastrowid
 
-    conn.commit()
-    conn.close()
+        # If Positive, record Scan Positive alert
+        if screening_status == "Positive":
+            cursor.execute("SELECT grain_type FROM storage_units WHERE id = ?", (storage_unit_id,))
+            u = cursor.fetchone()
+            grain_name = (u["grain_type"] if u and u["grain_type"] else "Grain").capitalize()
+            cursor.execute("SELECT temperature, humidity, gas_index, moisture FROM sensor_readings WHERE storage_unit_id = ? ORDER BY id DESC LIMIT 1", (storage_unit_id,))
+            r = cursor.fetchone()
+            rv = {
+                "temperature": round(r["temperature"], 1) if r else 28.0,
+                "humidity": round(r["humidity"], 1) if r else 70.0,
+                "gas_index": r["gas_index"] if r else 150,
+                "moisture": round(r["moisture"], 1) if r else 14.5,
+                "fluorescence_area_pct": area_pct,
+                "grain": grain_name,
+                "threshold": 5.0
+            }
+            cursor.execute("""
+                INSERT INTO alerts (storage_unit_id, alert_type, severity, title, message, reading_values, acknowledged, timestamp)
+                VALUES (?, 'Scan Positive', 'Critical', 'Scan Positive', ?, ?, 0, CURRENT_TIMESTAMP)
+            """, (
+                storage_unit_id,
+                f"UV contamination screening detected {area_pct:.1f}% optical emission area, indicating suspect aflatoxin contamination in {grain_name}.",
+                json.dumps(rv)
+            ))
+
+        conn.commit()
+    finally:
+        if conn:
+            conn.close()
 
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1069,13 +1213,13 @@ def create_storage_unit():
     if not location or not grain_type:
         return jsonify({"status": "error", "message": "Location and grain_type cannot be empty."}), 400
 
+    conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("INSERT INTO storage_units (location, grain_type) VALUES (?, ?)", (location, grain_type))
         unit_id = cursor.lastrowid
         conn.commit()
-        conn.close()
 
         return jsonify({
             "status": "success",
@@ -1088,7 +1232,15 @@ def create_storage_unit():
             }
         }), 201
     except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
         return jsonify({"status": "error", "message": f"Failed to create storage unit: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route("/api/calibrate-baseline", methods=["GET", "POST"])
@@ -1097,47 +1249,57 @@ def calibrate_baseline():
     POST /api/calibrate-baseline: Stores MQ-135 clean-air baseline.
     GET /api/calibrate-baseline: Retrieves current baseline.
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS system_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        unit_id = data.get("storage_unit_id", 1)
-        raw_val = data.get("baseline")
-
-        if raw_val is None:
-            # Query the latest reading's gas_index as baseline
-            cursor.execute("""
-                SELECT gas_index FROM sensor_readings 
-                WHERE storage_unit_id = ? 
-                ORDER BY timestamp DESC LIMIT 1
-            """, (unit_id,))
-            row = cursor.fetchone()
-            raw_val = row["gas_index"] if row else 75
-
-        cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('mq135_baseline', ?)", (str(raw_val),))
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
         conn.commit()
-        conn.close()
 
-        return jsonify({
-            "status": "success",
-            "message": "MQ-135 clean-air baseline calibrated successfully.",
-            "baseline": int(raw_val)
-        }), 200
+        if request.method == "POST":
+            data = request.get_json(silent=True) or {}
+            unit_id = data.get("storage_unit_id", 1)
+            raw_val = data.get("baseline")
 
-    else:
-        cursor.execute("SELECT value FROM system_settings WHERE key = 'mq135_baseline'")
-        row = cursor.fetchone()
-        baseline = int(row["value"]) if row else 75
-        conn.close()
-        return jsonify({"status": "success", "baseline": baseline}), 200
+            if raw_val is None:
+                # Query the latest reading's gas_index as baseline
+                cursor.execute("""
+                    SELECT gas_index FROM sensor_readings 
+                    WHERE storage_unit_id = ? 
+                    ORDER BY timestamp DESC LIMIT 1
+                """, (unit_id,))
+                row = cursor.fetchone()
+                raw_val = row["gas_index"] if row else 75
+
+            cursor.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('mq135_baseline', ?)", (str(raw_val),))
+            conn.commit()
+
+            return jsonify({
+                "status": "success",
+                "message": "MQ-135 clean-air baseline calibrated successfully.",
+                "baseline": int(raw_val)
+            }), 200
+
+        else:
+            cursor.execute("SELECT value FROM system_settings WHERE key = 'mq135_baseline'")
+            row = cursor.fetchone()
+            baseline = int(row["value"]) if row else 75
+            return jsonify({"status": "success", "baseline": baseline}), 200
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return jsonify({"status": "error", "message": f"Calibration error: {str(e)}"}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route("/api/sensor-readings/<int:storage_unit_id>", methods=["GET"])

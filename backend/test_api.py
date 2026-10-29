@@ -12,6 +12,12 @@ def test_api_endpoints():
 
     auth_headers = {}
 
+    def safe_print_response(res_json):
+        sanitized = dict(res_json)
+        if "access_token" in sanitized:
+            sanitized["access_token"] = "[REDACTED_JWT_TOKEN]"
+        print(f"    Response: {json.dumps(sanitized, indent=2)}")
+
     # 1. Test GET / (Root Endpoint)
     print("[1] Testing GET / ...")
     res = requests.get(f"{BASE_URL}/")
@@ -29,9 +35,16 @@ def test_api_endpoints():
     print(f"\n[2] Testing POST /api/auth/signup ({test_email})...")
     res = requests.post(f"{BASE_URL}/api/auth/signup", json=signup_payload)
     print(f"    Status: {res.status_code}")
-    print(f"    Response: {json.dumps(res.json(), indent=2)}")
+    safe_print_response(res.json())
     assert res.status_code == 201
     assert "access_token" in res.json()
+
+    # 2b. Test Duplicate Signup (Expect 400 Bad Request)
+    print(f"\n[2b] Testing Duplicate Signup rejection for {test_email} (Expect 400)...")
+    res_dup = requests.post(f"{BASE_URL}/api/auth/signup", json=signup_payload)
+    print(f"    Status: {res_dup.status_code} (Expected 400)")
+    assert res_dup.status_code == 400
+    assert res_dup.json().get("status") == "error"
 
     # 3. Test POST /api/auth/login
     print(f"\n[3] Testing POST /api/auth/login ({test_email})...")
@@ -41,17 +54,24 @@ def test_api_endpoints():
     }
     res = requests.post(f"{BASE_URL}/api/auth/login", json=login_payload)
     print(f"    Status: {res.status_code}")
-    print(f"    Response: {json.dumps(res.json(), indent=2)}")
+    safe_print_response(res.json())
     assert res.status_code == 200
     token = res.json()["access_token"]
     assert token is not None
     auth_headers = {"Authorization": f"Bearer {token}"}
 
+    # 3b. Test Login with incorrect password (Expect 401 Unauthorized)
+    print(f"\n[3b] Testing login with wrong password (Expect 401)...")
+    res_wrong = requests.post(f"{BASE_URL}/api/auth/login", json={"email": test_email, "password": "WrongPassword!"})
+    print(f"    Status: {res_wrong.status_code} (Expected 401)")
+    assert res_wrong.status_code == 401
+    assert res_wrong.json().get("status") == "error"
+
     # 4. Test GET /api/auth/me (Protected Route)
     print("\n[4] Testing GET /api/auth/me (Protected Session Check)...")
     res = requests.get(f"{BASE_URL}/api/auth/me", headers=auth_headers)
     print(f"    Status: {res.status_code}")
-    print(f"    Response: {json.dumps(res.json(), indent=2)}")
+    safe_print_response(res.json())
     assert res.status_code == 200
     assert res.json()["user"]["email"] == test_email
 
