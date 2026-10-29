@@ -10,17 +10,20 @@ const API_BASE_URL = (function () {
         try {
             const stored = localStorage.getItem("gg_api_url");
             if (stored) return stored;
-        } catch (e) {}
+        } catch (e) { }
 
         // Local development or file opening
         if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") {
             return "http://localhost:5000/api";
         }
 
-        // Full-stack cloud deployment (Render, Railway, Heroku, Docker)
-        if (!window.location.hostname.includes("github.io")) {
-            return `${window.location.origin}/api`;
+        // GitHub Pages frontend connects to Render backend
+        if (window.location.hostname.includes("github.io")) {
+            return "https://grain-guardian-api.onrender.com/api";
         }
+
+        // Other cloud deployments
+        return `${window.location.origin}/api`;
     }
     return "http://localhost:5000/api";
 })();
