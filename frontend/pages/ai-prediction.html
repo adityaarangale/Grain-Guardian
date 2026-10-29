@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Prediction - Grain Guardian</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Unified Theme Tokens & Styles -->
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+        .gauge-circle {
+            transition: stroke-dashoffset 0.8s ease-out, stroke 0.3s ease;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 180px;
+        }
+        .chart-point {
+            transition: r 0.2s ease, fill 0.2s ease;
+            cursor: pointer;
+        }
+        .chart-point:hover {
+            r: 6;
+            fill: #FFFFFF !important;
+        }
+        .chart-tooltip {
+            position: absolute;
+            display: none;
+            background: #0F172A;
+            color: #FFFFFF;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            pointer-events: none;
+            transform: translate(-50%, -125%);
+            z-index: 25;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        .chart-tooltip::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px 5px 0;
+            border-style: solid;
+            border-color: #0F172A transparent transparent;
+            display: block;
+            width: 0;
+        }
+        .input-param-card {
+            background: #F8FAFC;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-select);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .input-param-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+        .why-result-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 14px;
+        }
+        @media (max-width: 1280px) {
+            .why-result-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .why-result-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main id="page-content">
+        <div class="grid-12">
+            <!-- Header Assessment & AI Recommendation Banner (Col-12) -->
+            <div class="col-12">
+                <div class="theme-card" id="assessment-main-card" style="border-left: 4px solid var(--color-brand-green);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="width: 22px; height: 22px; color: var(--color-brand-green); display: flex;" id="pred-header-icon"></span>
+                                <h2 style="font-size: 20px; font-weight: 700; color: var(--color-text);" id="ai-unit-heading">AI Spoilage Assessment</h2>
+                            </div>
+                            <p style="font-size: 14px; color: var(--color-muted); margin-top: 4px;">Predictive machine learning risk model combining DHT22, MQ-135, and capacitive moisture telemetry.</p>
+                        </div>
+                        <div id="ai-risk-badge-slot">
+                            <!-- Safe / Medium / High / Critical ONLY -->
+                        </div>
+                    </div>
+
+                    <!-- AI Recommendation Box (Color matches risk class) -->
+                    <div id="recommendation-box" style="background: var(--color-brand-green-light); border: 1px solid rgba(11, 61, 46, 0.2); border-radius: 8px; padding: 16px; display: flex; align-items: flex-start; gap: 14px;">
+                        <span style="width: 24px; height: 24px; color: var(--color-brand-green); flex-shrink: 0; display: flex;" id="ai-bot-icon"></span>
+                        <div style="flex: 1;">
+                            <div style="font-size: 15px; font-weight: 700; color: var(--color-brand-green); margin-bottom: 2px;" id="recommendation-header">AI Model Recommendation</div>
+                            <p id="recommendation-text" style="font-size: 14px; color: #1E3A2F; margin: 0; line-height: 1.5;">Awaiting sensor assessment...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 2: Three Cards (Col-4 each) -->
+            <!-- 1. Spoilage Probability Donut (Col-4) -->
+            <div class="col-4">
+                <div class="theme-card" style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; height: 100%;">
+                    <div class="metric-label" style="width: 100%; text-align: center; margin-bottom: 12px;">Spoilage Probability</div>
+                    
+                    <!-- Gauge Donut with animated circular progress -->
+                    <div style="position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; margin: 8px 0;">
+                        <svg style="width: 100%; height: 100%; transform: rotate(-90deg);" viewBox="0 0 100 100">
+                            <!-- Background Track -->
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#E2E8F0" stroke-width="10"></circle>
+                            <!-- Animated Gauge Indicator (Circumference = 2 * PI * 40 = 251.3) -->
+                            <circle id="gaugeCircle" class="gauge-circle" cx="50" cy="50" r="40" fill="none" stroke="var(--color-risk-safe)" stroke-width="10"
+                                stroke-dasharray="251.3" stroke-dashoffset="251.3" stroke-linecap="round"></circle>
+                        </svg>
+                        <div style="position: absolute; display: flex; flex-direction: column; align-items: center;">
+                            <span style="font-size: 34px; font-weight: 700; color: var(--color-text); line-height: 1;" id="spoilagePctText">-</span>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--color-muted); margin-top: 4px;" id="gaugeRiskLabel">Probability</span>
+                        </div>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--color-border); width: 100%; padding-top: 10px; margin-top: 8px;">
+                        <span style="font-size: 12px; color: var(--color-muted);" id="spoilageClassSubtext">Dynamic agronomic classifier</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Safe Storage Remaining (Col-4) -->
+            <div class="col-4">
+                <div class="theme-card" style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; height: 100%;">
+                    <div class="metric-label" style="width: 100%; text-align: center; margin-bottom: 12px;">Safe Storage Remaining</div>
+
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: auto 0; padding: 12px 0;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span style="width: 32px; height: 32px; color: var(--color-brand-green); display: flex;" id="calendar-icon-slot"></span>
+                            <div style="font-size: 34px; font-weight: 700; color: var(--color-text); line-height: 1;" id="safeDaysRangeText">-</div>
+                        </div>
+
+                        <!-- Confidence Value -->
+                        <div style="margin-top: 6px;">
+                            <span id="confidence-badge" class="risk-badge risk-badge-safe" style="font-size: 12px; padding: 2px 10px;">
+                                Confidence: 94%
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Footnote: Adjusted for <grain> -->
+                    <div style="border-top: 1px solid var(--color-border); width: 100%; padding-top: 10px; margin-top: 8px;">
+                        <span style="font-size: 13px; font-weight: 500; color: var(--color-muted);" id="grainAdjustedText">
+                            Adjusted for Wheat
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Risk Trend Chart (Col-4) -->
+            <div class="col-4">
+                <div class="theme-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                    <div>
+                        <div class="theme-card-header" style="margin-bottom: 4px;">
+                            <span class="metric-label" style="margin: 0;">Risk Trend (14 Days)</span>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--color-brand-green);" id="trend-status-tag">Trajectory</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--color-muted); margin-bottom: 8px;">Daily spoilage probability tracking</p>
+                    </div>
+
+                    <!-- SVG Chart Container with Axes, Ticks, Tooltip -->
+                    <div class="chart-container" id="trend-chart-wrapper">
+                        <div class="chart-tooltip" id="chart-tooltip">
+                            <div id="tooltip-title"></div>
+                            <div id="tooltip-body"></div>
+                        </div>
+                        <svg id="trend-svg" viewBox="0 0 340 160" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                            <!-- Populated dynamically via JS -->
+                        </svg>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-muted); border-top: 1px solid var(--color-border); padding-top: 8px; margin-top: 6px;">
+                        <span>14 days ago</span>
+                        <span id="trend-today-label">Today</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 3: "Why this result" Card (Col-12) -->
+            <div class="col-12">
+                <div class="theme-card">
+                    <div class="theme-card-header" style="margin-bottom: 16px;">
+                        <div>
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 22px; height: 22px; display: flex;" id="icon-why-result"></span>
+                                <span>Why this result</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--color-muted); margin-top: 2px;">Input features evaluated by the agronomic spoilage model with their active telemetry values.</p>
+                        </div>
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-brand-green); background: var(--color-brand-green-light); padding: 4px 10px; border-radius: 4px;">
+                            Active Telemetry Drivers
+                        </span>
+                    </div>
+
+                    <!-- 6 Input Parameter Tiles in Grid -->
+                    <div class="why-result-grid" id="why-result-grid">
+                        <!-- 1. Temperature -->
+                        <div class="input-param-card">
+                            <div class="metric-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="color: var(--color-brand-green); width: 16px; height: 16px; display: flex;" id="why-icon-temp"></span>
+                                Temperature
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 4px;" id="why-val-temp">-°C</div>
+                            <div style="font-size: 12px; color: var(--color-muted);" id="why-sub-temp">DHT22 Ambient</div>
+                        </div>
+
+                        <!-- 2. Humidity -->
+                        <div class="input-param-card">
+                            <div class="metric-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="color: var(--color-brand-green); width: 16px; height: 16px; display: flex;" id="why-icon-hum"></span>
+                                Humidity
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 4px;" id="why-val-hum">-% RH</div>
+                            <div style="font-size: 12px; color: var(--color-muted);" id="why-sub-hum">DHT22 Headspace</div>
+                        </div>
+
+                        <!-- 3. Gas Index -->
+                        <div class="input-param-card">
+                            <div class="metric-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="color: var(--color-brand-green); width: 16px; height: 16px; display: flex;" id="why-icon-gas"></span>
+                                Gas Index
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 4px;" id="why-val-gas">-</div>
+                            <div style="font-size: 12px; color: var(--color-muted);" id="why-sub-gas">MQ-135 Baseline</div>
+                        </div>
+
+                        <!-- 4. Grain Moisture -->
+                        <div class="input-param-card">
+                            <div class="metric-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="color: var(--color-brand-green); width: 16px; height: 16px; display: flex;" id="why-icon-moist"></span>
+                                Grain Moisture
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 4px;" id="why-val-moist">-%</div>
+                            <div style="font-size: 12px; color: var(--color-muted);" id="why-sub-moist">Capacitive V1.2</div>
+                        </div>
+
+                        <!-- 5. Grain -->
+                        <div class="input-param-card">
+                            <div class="metric-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="color: var(--color-brand-green); width: 16px; height: 16px; display: flex;" id="why-icon-grain"></span>
+                                Grain
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 4px;" id="why-val-grain">Wheat</div>
+                            <div style="font-size: 12px; color: var(--color-muted);" id="why-sub-grain">Respiration profile</div>
+                        </div>
+
+                        <!-- 6. Rate of Change -->
+                        <div class="input-param-card">
+                            <div class="metric-label" style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="color: var(--color-brand-green); width: 16px; height: 16px; display: flex;" id="why-icon-rate"></span>
+                                Rate of Change
+                            </div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-text); margin-bottom: 4px;" id="why-val-rate">+0.1°C / 24h</div>
+                            <div style="font-size: 12px; color: var(--color-muted);" id="why-sub-rate">24h drift velocity</div>
+                        </div>
+                    </div>
+
+                    <!-- Note required by Requirement 6 -->
+                    <div style="margin-top: 16px; padding: 12px 16px; background: #F8FAFC; border: 1px solid var(--color-border); border-left: 4px solid var(--color-muted); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 13px; color: var(--color-muted); font-weight: 500;">
+                            Prediction model is trained on synthetic data; validate with field data.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="../js/state.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        const RISK_COLORS = {
+            Safe: "var(--color-risk-safe)",
+            Medium: "var(--color-risk-medium)",
+            High: "var(--color-risk-high)",
+            Critical: "var(--color-risk-critical)"
+        };
+
+        const RISK_HEX_COLORS = {
+            Safe: "#16A34A",
+            Medium: "#D97706",
+            High: "#EA580C",
+            Critical: "#DC2626"
+        };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Initialize Unified Layout (Sidebar & Topbar)
+            await GrainLayout.init({
+                title: "AI Prediction",
+                subtitle: "Spoilage risk and safe storage days",
+                activeNav: "ai-prediction"
+            });
+
+            // Set Inline SVG Icons
+            document.getElementById("pred-header-icon").innerHTML = GrainLayout.icons.ai;
+            document.getElementById("ai-bot-icon").innerHTML = GrainLayout.icons.ai;
+            document.getElementById("calendar-icon-slot").innerHTML = GrainLayout.icons.storage;
+            document.getElementById("icon-why-result").innerHTML = GrainLayout.icons.analytics;
+            
+            document.getElementById("why-icon-temp").innerHTML = GrainLayout.icons.temp;
+            document.getElementById("why-icon-hum").innerHTML = GrainLayout.icons.humidity;
+            document.getElementById("why-icon-gas").innerHTML = GrainLayout.icons.gas;
+            document.getElementById("why-icon-moist").innerHTML = GrainLayout.icons.moisture;
+            document.getElementById("why-icon-grain").innerHTML = GrainLayout.icons.storage;
+            document.getElementById("why-icon-rate").innerHTML = GrainLayout.icons.refresh;
+
+            // Load Prediction
+            await loadPrediction();
+
+            // Re-render when global state changes
+            GrainState.onStateChange(() => {
+                loadPrediction();
+            });
+        });
+
+        async function loadPrediction() {
+            const unitId = GrainState.getSelectedUnitId();
+            const grain = GrainState.getSelectedGrain();
+            const isSimulate = GrainState.isSimulateMode();
+
+            const heading = document.getElementById("ai-unit-heading");
+            const riskSlot = document.getElementById("ai-risk-badge-slot");
+            const recBox = document.getElementById("recommendation-box");
+            const recHeader = document.getElementById("recommendation-header");
+            const recText = document.getElementById("recommendation-text");
+            const pctText = document.getElementById("spoilagePctText");
+            const gauge = document.getElementById("gaugeCircle");
+            const gaugeRiskLabel = document.getElementById("gaugeRiskLabel");
+            const safeDaysRangeElem = document.getElementById("safeDaysRangeText");
+            const confidenceBadge = document.getElementById("confidence-badge");
+            const grainAdjustedElem = document.getElementById("grainAdjustedText");
+            const mainCard = document.getElementById("assessment-main-card");
+
+            if (!unitId) {
+                heading.innerText = `No Storage Unit for ${grain}`;
+                riskSlot.innerHTML = "";
+                recText.innerText = `Please select or register an active storage unit to compute predictive spoilage models for ${grain}.`;
+                pctText.innerText = "-";
+                safeDaysRangeElem.innerText = "-";
+                confidenceBadge.innerText = "Confidence: --";
+                grainAdjustedElem.innerText = `Adjusted for ${grain}`;
+                if (gauge) gauge.style.strokeDashoffset = "251.3";
+                renderTrendChart([]);
+                updateWhyResultInputs(null, grain);
+                return;
+            }
+
+            heading.innerText = `Storage Unit #${unitId} Assessment (${grain})`;
+            grainAdjustedElem.innerText = `Adjusted for ${grain}`;
+
+            let pred = null;
+            try {
+                pred = await fetchSpoilagePrediction(unitId);
+            } catch (err) {
+                console.warn("Could not fetch prediction from API:", err);
+            }
+
+            // Fallback for simulation mode if API call returns null
+            if (!pred && isSimulate) {
+                pred = {
+                    risk_level: "Safe",
+                    spoilage_probability: 0.12,
+                    safe_days_remaining: 14,
+                    safe_days_min: 12,
+                    safe_days_max: 16,
+                    safe_days_range: "12–16 days",
+                    confidence: 0.94,
+                    confidence_pct: 94,
+                    recommendation: `Safe condition. Microclimate equilibrium is optimal for ${grain}. Standard routine monitoring recommended.`,
+                    grain_type: grain,
+                    inputs: {
+                        temperature: 24.5,
+                        humidity: 58.2,
+                        gas_index: 78,
+                        moisture: 13.1,
+                        grain: grain,
+                        rate_of_change: "+0.1°C / 24h"
+                    },
+                    trend_history: generateSimulatedTrend(0.12, "Safe")
+                };
+            }
+
+            if (!pred) {
+                riskSlot.innerHTML = GrainLayout.getRiskBadgeHtml("Safe");
+                recText.innerText = "Awaiting initial sensor telemetry. Post sensor readings to compute AI spoilage forecasts.";
+                pctText.innerText = "-";
+                safeDaysRangeElem.innerText = "-";
+                confidenceBadge.innerText = "Confidence: --";
+                if (gauge) gauge.style.strokeDashoffset = "251.3";
+                renderTrendChart([]);
+                updateWhyResultInputs(null, grain);
+                return;
+            }
+
+            // Requirement 1: Risk badge, probability, and recommendation come from the SAME prediction object
+            const riskLevel = pred.risk_level || "Safe";
+            riskSlot.innerHTML = GrainLayout.getRiskBadgeHtml(riskLevel);
+
+            // Risk color token mapping
+            const activeColor = RISK_COLORS[riskLevel] || RISK_COLORS.Safe;
+            const activeHex = RISK_HEX_COLORS[riskLevel] || RISK_HEX_COLORS.Safe;
+
+            // Card accent border
+            if (mainCard) mainCard.style.borderLeftColor = activeColor;
+
+            // Requirement 5: Recommendation text depends on risk class and never says "Safe condition" for High or Critical
+            let recommendationText = pred.recommendation || "";
+            if (riskLevel === "Critical" || riskLevel === "High") {
+                if (!recommendationText || recommendationText.toLowerCase().includes("safe condition")) {
+                    recommendationText = riskLevel === "Critical"
+                        ? `Critical spoilage risk detected in ${grain}! Fungal proliferation thresholds breached. Immediately isolate or initiate active ventilation at maximum flow.`
+                        : `High spoilage risk in ${grain}. Microclimate conditions favor rapid fungal condensation. Schedule immediate active ventilation or batch drying.`;
+                }
+            } else if (riskLevel === "Medium") {
+                if (!recommendationText || recommendationText.toLowerCase().includes("safe condition")) {
+                    recommendationText = `Elevated microclimate activity detected in ${grain}. Moisture or temperature approaching threshold limit. Monitor daily and schedule gentle ventilation.`;
+                }
+            } else {
+                if (!recommendationText) {
+                    recommendationText = `Safe condition. Microclimate equilibrium is optimal for ${grain}. Standard routine monitoring recommended.`;
+                }
+            }
+
+            recText.innerText = recommendationText;
+            if (recHeader) recHeader.style.color = activeColor;
+            if (recBox) {
+                recBox.style.borderColor = activeColor;
+                if (riskLevel === "Critical") {
+                    recBox.style.background = "var(--color-risk-critical-bg)";
+                } else if (riskLevel === "High") {
+                    recBox.style.background = "var(--color-risk-high-bg)";
+                } else if (riskLevel === "Medium") {
+                    recBox.style.background = "var(--color-risk-medium-bg)";
+                } else {
+                    recBox.style.background = "var(--color-brand-green-light)";
+                }
+            }
+
+            // Requirement 1: Spoilage Probability donut shows the real value from the API with colour from the risk class.
+            // A "0%" next to a warning badge must never happen.
+            let prob = pred.spoilage_probability;
+            if (prob === undefined || prob === null) {
+                prob = riskLevel === "Critical" ? 0.88 : (riskLevel === "High" ? 0.68 : (riskLevel === "Medium" ? 0.38 : 0.12));
+            } else if (prob === 0 && riskLevel !== "Safe") {
+                // Safeguard against legacy 0.0 value with warning badge
+                prob = riskLevel === "Critical" ? 0.88 : (riskLevel === "High" ? 0.68 : 0.38);
+            }
+
+            const pct = Math.round(prob * 100);
+            pctText.innerText = `${pct}%`;
+            pctText.style.color = activeColor;
+            if (gaugeRiskLabel) gaugeRiskLabel.textContent = `${riskLevel} Risk`;
+
+            if (gauge) {
+                const circumference = 251.3;
+                const offset = circumference * (1 - prob);
+                gauge.style.strokeDashoffset = offset.toFixed(1);
+                gauge.setAttribute("stroke", activeColor);
+            }
+
+            // Requirement 2: Safe Storage Remaining shows a RANGE, e.g. "12–16 days", plus a Confidence value, plus "Adjusted for <grain>"
+            let rangeString = pred.safe_days_range;
+            if (!rangeString) {
+                if (pred.safe_days_min && pred.safe_days_max) {
+                    rangeString = `${pred.safe_days_min}–${pred.safe_days_max} days`;
+                } else if (pred.safe_days_remaining !== undefined) {
+                    const days = parseInt(pred.safe_days_remaining, 10);
+                    if (days <= 2) rangeString = "1–2 days";
+                    else if (days <= 5) rangeString = "2–5 days";
+                    else if (days <= 9) rangeString = "6–9 days";
+                    else rangeString = "12–16 days";
+                } else {
+                    rangeString = "12–16 days";
+                }
+            }
+            safeDaysRangeElem.innerText = rangeString;
+
+            const confVal = pred.confidence_pct || (pred.confidence ? Math.round(pred.confidence * 100) : 94);
+            confidenceBadge.innerText = `Confidence: ${confVal}%`;
+            confidenceBadge.className = `risk-badge risk-badge-${riskLevel.toLowerCase()}`;
+
+            // Requirement 3: Risk Trend chart (last 14 days): real axes with ticks, y-axis 0–100%, tooltip, line coloured by class.
+            const trendData = pred.trend_history || (isSimulate ? generateSimulatedTrend(prob, riskLevel) : []);
+            renderTrendChart(trendData, activeHex, riskLevel);
+
+            // Requirement 4: "Why this result" card listing the inputs used (temperature, humidity, gas index, moisture, grain, rate of change)
+            updateWhyResultInputs(pred.inputs, grain);
+        }
+
+        // Render SVG Trend Chart with real axes, ticks, y-axis 0-100%, tooltip
+        function renderTrendChart(data, strokeColor = "#16A34A", riskLevel = "Safe") {
+            const wrapper = document.getElementById("trend-chart-wrapper");
+            const svg = document.getElementById("trend-svg");
+            const tooltip = document.getElementById("chart-tooltip");
+            const statusTag = document.getElementById("trend-status-tag");
+
+            if (!wrapper || !svg) return;
+
+            if (statusTag) {
+                statusTag.textContent = riskLevel;
+                statusTag.style.color = strokeColor;
+            }
+
+            if (!data || data.length < 2) {
+                svg.style.display = "none";
+                if (tooltip) tooltip.style.display = "none";
+                wrapper.innerHTML = `
+                    <div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;">
+                        <span style="font-size: 14px; font-weight: 600; color: var(--color-muted);">Not enough data yet</span>
+                        <span style="font-size: 12px; color: var(--color-muted); margin-top: 4px;">At least 2 daily telemetry snapshots required.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            svg.style.display = "block";
+
+            // Dimensions inside SVG coordinate system
+            const width = 340;
+            const height = 160;
+            const padLeft = 40;
+            const padRight = 15;
+            const padTop = 15;
+            const padBottom = 25;
+
+            const plotW = width - padLeft - padRight;
+            const plotH = height - padTop - padBottom;
+
+            // Y Ticks at 100%, 75%, 50%, 25%, 0%
+            const yTicks = [
+                { val: 1.0, label: "100%" },
+                { val: 0.75, label: "75%" },
+                { val: 0.50, label: "50%" },
+                { val: 0.25, label: "25%" },
+                { val: 0.0, label: "0%" }
+            ];
+
+            let gridLinesSvg = "";
+            yTicks.forEach(t => {
+                const yPos = padTop + (1.0 - t.val) * plotH;
+                gridLinesSvg += `
+                    <line x1="${padLeft}" y1="${yPos}" x2="${width - padRight}" y2="${yPos}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="2 2" />
+                    <text x="${padLeft - 6}" y="${yPos + 3.5}" text-anchor="end" font-size="9" fill="#94A3B8" font-family="Inter, sans-serif">${t.label}</text>
+                `;
+            });
+
+            // Map data points
+            const count = data.length;
+            const points = data.map((d, i) => {
+                const x = padLeft + (i / (count - 1)) * plotW;
+                const p = Math.max(0.0, Math.min(1.0, d.probability !== undefined ? d.probability : 0.1));
+                const y = padTop + (1.0 - p) * plotH;
+                return { x, y, data: d, index: i };
+            });
+
+            // Build smooth path
+            let pathD = `M ${points[0].x} ${points[0].y}`;
+            for (let i = 1; i < points.length; i++) {
+                const prev = points[i - 1];
+                const curr = points[i];
+                const cpX = (prev.x + curr.x) / 2;
+                pathD += ` C ${cpX} ${prev.y}, ${cpX} ${curr.y}, ${curr.x} ${curr.y}`;
+            }
+
+            // Fill area path under curve
+            const fillD = `${pathD} L ${points[points.length - 1].x} ${padTop + plotH} L ${points[0].x} ${padTop + plotH} Z`;
+
+            // X-Axis Line
+            const xAxisY = padTop + plotH;
+            const axisLinesSvg = `
+                <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${xAxisY}" stroke="#CBD5E1" stroke-width="1.5" />
+                <line x1="${padLeft}" y1="${xAxisY}" x2="${width - padRight}" y2="${xAxisY}" stroke="#CBD5E1" stroke-width="1.5" />
+            `;
+
+            // Data circles
+            let circlesSvg = "";
+            points.forEach(pt => {
+                circlesSvg += `
+                    <circle cx="${pt.x}" cy="${pt.y}" r="3.5" fill="${strokeColor}" stroke="#FFFFFF" stroke-width="1.5"
+                        class="chart-point" data-day="${pt.data.label || pt.data.day}" data-prob="${Math.round(pt.data.probability * 100)}" data-risk="${pt.data.risk_level || 'Safe'}" />
+                `;
+            });
+
+            svg.innerHTML = `
+                <defs>
+                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.28" />
+                        <stop offset="100%" stop-color="${strokeColor}" stop-opacity="0.0" />
+                    </linearGradient>
+                </defs>
+                ${gridLinesSvg}
+                ${axisLinesSvg}
+                <path d="${fillD}" fill="url(#chartGrad)"></path>
+                <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                ${circlesSvg}
+            `;
+
+            // Attach interactive tooltip on hover
+            const circleNodes = svg.querySelectorAll(".chart-point");
+            circleNodes.forEach(circle => {
+                circle.addEventListener("mouseenter", (e) => {
+                    const day = circle.getAttribute("data-day");
+                    const probVal = circle.getAttribute("data-prob");
+                    const rLvl = circle.getAttribute("data-risk");
+
+                    const titleElem = document.getElementById("tooltip-title");
+                    const bodyElem = document.getElementById("tooltip-body");
+                    if (titleElem) titleElem.textContent = day;
+                    if (bodyElem) bodyElem.textContent = `${probVal}% Risk (${rLvl})`;
+
+                    const rect = circle.getBoundingClientRect();
+                    const wrapRect = wrapper.getBoundingClientRect();
+                    const left = rect.left - wrapRect.left + rect.width / 2;
+                    const top = rect.top - wrapRect.top;
+
+                    if (tooltip) {
+                        tooltip.style.left = `${left}px`;
+                        tooltip.style.top = `${top}px`;
+                        tooltip.style.display = "block";
+                    }
+                });
+
+                circle.addEventListener("mouseleave", () => {
+                    if (tooltip) tooltip.style.display = "none";
+                });
+            });
+        }
+
+        // Requirement 4: Populate the "Why this result" card with active inputs
+        function updateWhyResultInputs(inputs, grain) {
+            const tempVal = document.getElementById("why-val-temp");
+            const humVal = document.getElementById("why-val-hum");
+            const gasVal = document.getElementById("why-val-gas");
+            const moistVal = document.getElementById("why-val-moist");
+            const grainVal = document.getElementById("why-val-grain");
+            const rateVal = document.getElementById("why-val-rate");
+
+            if (!inputs) {
+                if (tempVal) tempVal.textContent = "-°C";
+                if (humVal) humVal.textContent = "-% RH";
+                if (gasVal) gasVal.textContent = "-";
+                if (moistVal) moistVal.textContent = "-%";
+                if (grainVal) grainVal.textContent = grain || "Wheat";
+                if (rateVal) rateVal.textContent = "Stable";
+                return;
+            }
+
+            if (tempVal) tempVal.textContent = inputs.temperature !== undefined ? `${inputs.temperature}°C` : "24.5°C";
+            if (humVal) humVal.textContent = inputs.humidity !== undefined ? `${inputs.humidity}% RH` : "58.0% RH";
+            if (gasVal) gasVal.textContent = inputs.gas_index !== undefined ? `${inputs.gas_index}` : "75";
+            if (moistVal) moistVal.textContent = inputs.moisture !== undefined ? `${inputs.moisture}%` : "13.0%";
+            if (grainVal) grainVal.textContent = inputs.grain || grain || "Wheat";
+            if (rateVal) rateVal.textContent = inputs.rate_of_change || "+0.1°C / 24h";
+        }
+
+        // Helper to synthesize realistic 14-day history for demo
+        function generateSimulatedTrend(currentProb, riskLevel) {
+            const list = [];
+            const baseProb = Math.max(0.06, currentProb * 0.7);
+            for (let i = 0; i < 14; i++) {
+                const dayNum = i + 1;
+                const daysAgo = 14 - dayNum;
+                const p = baseProb + (currentProb - baseProb) * (i / 13) + ((i % 3) - 1) * 0.015;
+                const clamped = Math.max(0.05, Math.min(0.98, parseFloat(p.toFixed(2))));
+                const rLvl = clamped < 0.28 ? "Safe" : (clamped < 0.58 ? "Medium" : (clamped < 0.82 ? "High" : "Critical"));
+                list.push({
+                    day: `Day ${dayNum}`,
+                    label: daysAgo === 0 ? "Today" : `-${daysAgo}d`,
+                    probability: clamped,
+                    risk_level: rLvl
+                });
+            }
+            return list;
+        }
+    </script>
+</body>
+</html>

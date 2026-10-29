@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alerts - Grain Guardian</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Unified Theme Tokens & Styles -->
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+        .alert-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .alert-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+        }
+        .metric-cell {
+            background: #F8FAFC;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center;
+        }
+        .metric-cell-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-muted);
+            margin-bottom: 4px;
+        }
+        .metric-cell-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            padding: 16px;
+        }
+        .modal-card {
+            background: #FFFFFF;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            max-width: 580px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--color-border);
+            background: #F8FAFC;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <main id="page-content">
+        <div class="grid-12">
+            <!-- Filter & Alerts Meta Bar (Col-12) -->
+            <div class="col-12">
+                <div class="theme-card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 22px; height: 22px; color: var(--color-brand-green); display: flex;" id="alerts-header-icon"></span>
+                            <h2 style="font-size: 20px; font-weight: 700; color: var(--color-text);" id="alerts-heading">Storage Facility Alerts</h2>
+                        </div>
+                        <p style="font-size: 14px; color: var(--color-muted); margin-top: 4px;">Automated anomaly notifications and threshold breach alerts.</p>
+                    </div>
+
+                    <!-- Filters -->
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <!-- Filter by Alert Type -->
+                        <div class="select-group">
+                            <label for="filter-type" class="select-label">Alert Type</label>
+                            <div class="select-container" style="min-width: 170px;">
+                                <select id="filter-type" class="theme-select" onchange="loadAlerts()">
+                                    <option value="ALL">All Alert Types</option>
+                                    <option value="High Humidity">High Humidity</option>
+                                    <option value="Temperature Spike">Temperature Spike</option>
+                                    <option value="Gas Index Rise">Gas Index Rise</option>
+                                    <option value="High Moisture">High Moisture</option>
+                                    <option value="Critical Risk">Critical Risk</option>
+                                    <option value="Scan Positive">Scan Positive</option>
+                                </select>
+                                <div class="select-chevron" id="type-chevron"></div>
+                            </div>
+                        </div>
+
+                        <!-- Filter by Severity -->
+                        <div class="select-group">
+                            <label for="filter-severity" class="select-label">Severity</label>
+                            <div class="select-container" style="min-width: 140px;">
+                                <select id="filter-severity" class="theme-select" onchange="loadAlerts()">
+                                    <option value="ALL">All Severities</option>
+                                    <option value="Critical">Critical</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Safe">Safe</option>
+                                </select>
+                                <div class="select-chevron" id="sev-chevron"></div>
+                            </div>
+                        </div>
+
+                        <!-- Filter by Acknowledged Status -->
+                        <div class="select-group">
+                            <label for="filter-status" class="select-label">Status</label>
+                            <div class="select-container" style="min-width: 140px;">
+                                <select id="filter-status" class="theme-select" onchange="loadAlerts()">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="0">Active Only</option>
+                                    <option value="1">Acknowledged</option>
+                                </select>
+                                <div class="select-chevron" id="status-chevron"></div>
+                            </div>
+                        </div>
+
+                        <!-- Refresh Button -->
+                        <div class="select-group" style="align-self: flex-end;">
+                            <label class="select-label" style="opacity: 0;">Refresh</label>
+                            <button type="button" class="btn-outline btn-sm" onclick="loadAlerts()" style="display: flex; align-items: center; gap: 6px; height: 38px;">
+                                <span id="refresh-btn-icon" style="width: 14px; height: 14px; display: inline-flex;"></span>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts List Container (Col-12) -->
+            <div class="col-12">
+                <div id="alerts-list-container" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Rendered dynamic alerts or empty state -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Alert Details Modal -->
+    <div id="alert-details-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
+        <div class="modal-card" id="modal-card-content">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="modal-header-icon" style="width: 20px; height: 20px; display: flex;"></span>
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--color-text); margin: 0;" id="modal-title">Alert Details</h3>
+                </div>
+                <button type="button" class="btn-outline btn-sm" onclick="closeDetailsModal()" style="padding: 4px 8px; border: none; background: transparent; cursor: pointer; color: var(--color-muted);">
+                    <span id="modal-close-icon" style="width: 18px; height: 18px; display: inline-flex;"></span>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-body-content">
+                <!-- Injected via JavaScript -->
+            </div>
+            <div class="modal-footer" id="modal-footer-content">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Scripts -->
+    <script src="../js/state.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        // Global in-memory alerts cache for modal inspection
+        let currentAlerts = [];
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Initialize Unified Layout
+            await GrainLayout.init({
+                title: "Alerts",
+                subtitle: "Alert history",
+                activeNav: "alerts"
+            });
+
+            // Set Icons using inline SVG
+            document.getElementById("alerts-header-icon").innerHTML = GrainLayout.icons.alerts;
+            document.getElementById("sev-chevron").innerHTML = GrainLayout.icons.chevronDown;
+            document.getElementById("type-chevron").innerHTML = GrainLayout.icons.chevronDown;
+            document.getElementById("status-chevron").innerHTML = GrainLayout.icons.chevronDown;
+            document.getElementById("refresh-btn-icon").innerHTML = GrainLayout.icons.refresh;
+            document.getElementById("modal-close-icon").innerHTML = GrainLayout.icons.close;
+
+            // Load Alerts from Backend
+            await loadAlerts();
+
+            // Re-render when global unit or grain changes
+            GrainState.onStateChange(() => {
+                loadAlerts();
+            });
+        });
+
+        /**
+         * Formats timestamp into local time representation: e.g. "24 Oct, 10:45 AM"
+         */
+        function formatAlertTime(dateInput) {
+            if (!dateInput) return "Recently";
+            const dateStr = typeof dateInput === "string" ? dateInput.replace(" ", "T") : dateInput;
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return String(dateInput);
+
+            const day = d.getDate();
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const month = monthNames[d.getMonth()];
+
+            let hours = d.getHours();
+            const minutes = d.getMinutes().toString().padStart(2, "0");
+            const ampm = hours >= 12 ? "PM" : "AM";
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const formattedHours = hours.toString().padStart(2, "0");
+
+            return `${day} ${month}, ${formattedHours}:${minutes} ${ampm}`;
+        }
+
+        /**
+         * Fetches real alerts from the backend API using selected filters.
+         */
+        async function loadAlerts() {
+            const container = document.getElementById("alerts-list-container");
+            const heading = document.getElementById("alerts-heading");
+            const unitId = GrainState.getSelectedUnitId();
+            const grain = GrainState.getSelectedGrain();
+
+            if (heading) {
+                heading.innerText = unitId 
+                    ? `Storage Alerts - Unit #${unitId} (${grain})` 
+                    : `Storage Facility Alerts`;
+            }
+
+            const sevFilter = document.getElementById("filter-severity").value;
+            const typeFilter = document.getElementById("filter-type").value;
+            const statusFilter = document.getElementById("filter-status").value;
+
+            const filters = {};
+            if (unitId) filters.storage_unit_id = unitId;
+            if (typeFilter !== "ALL") filters.alert_type = typeFilter;
+            if (sevFilter !== "ALL") filters.severity = sevFilter;
+            if (statusFilter !== "ALL") filters.acknowledged = parseInt(statusFilter, 10);
+
+            try {
+                const res = await fetchAlerts(filters);
+                currentAlerts = (res && res.alerts) ? res.alerts : [];
+            } catch (err) {
+                console.error("Error loading alerts:", err);
+                currentAlerts = [];
+            }
+
+            renderAlertsList(currentAlerts);
+        }
+
+        /**
+         * Renders alert cards or empty state.
+         */
+        function renderAlertsList(alerts) {
+            const container = document.getElementById("alerts-list-container");
+
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = `
+                    <div class="theme-card empty-state" style="padding: 56px 24px; text-align: center;">
+                        <div class="empty-state-icon" style="color: var(--color-risk-safe); margin-bottom: 12px; display: inline-flex;">
+                            ${GrainLayout.icons.safe}
+                        </div>
+                        <div class="empty-state-title" style="font-size: 17px; font-weight: 700; color: var(--color-text); margin-bottom: 6px;">
+                            No alerts. Conditions are within safe limits.
+                        </div>
+                        <div class="empty-state-desc" style="font-size: 14px; color: var(--color-muted); max-width: 480px; margin: 0 auto; line-height: 1.5;">
+                            All monitored storage parameters remain in safe equilibrium. No anomaly thresholds have been breached for this selection.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = alerts.map(a => {
+                let borderCol = "var(--color-risk-safe)";
+                let icon = GrainLayout.icons.safe;
+                const sev = (a.severity || "Safe").toLowerCase();
+
+                if (sev === "critical") {
+                    borderCol = "var(--color-risk-critical)";
+                    icon = GrainLayout.icons.critical;
+                } else if (sev === "high") {
+                    borderCol = "var(--color-risk-high)";
+                    icon = GrainLayout.icons.high;
+                } else if (sev === "medium") {
+                    borderCol = "var(--color-risk-medium)";
+                    icon = GrainLayout.icons.medium;
+                }
+
+                const localTime = formatAlertTime(a.timestamp);
+                const ackBadge = a.acknowledged
+                    ? `<span style="font-size: 12px; font-weight: 600; color: #64748B; background: #F1F5F9; border: 1px solid #E2E8F0; padding: 2px 8px; border-radius: 4px;">Acknowledged</span>`
+                    : `<span style="font-size: 12px; font-weight: 600; color: #B45309; background: #FEF3C7; border: 1px solid #FDE68A; padding: 2px 8px; border-radius: 4px;">Active</span>`;
+
+                const ackButton = a.acknowledged
+                    ? `<button type="button" class="btn-outline btn-sm" disabled style="font-size: 13px; opacity: 0.6; cursor: not-allowed;">Acknowledged</button>`
+                    : `<button type="button" class="btn-primary btn-sm" id="card-ack-btn-${a.id}" onclick="handleAcknowledge(${a.id})" style="font-size: 13px;">Acknowledge</button>`;
+
+                return `
+                    <div class="theme-card alert-card" style="border-left: 4px solid ${borderCol};">
+                        <div style="display: flex; gap: 16px; flex: 1; min-width: 280px;">
+                            <div style="width: 42px; height: 42px; border-radius: 8px; background: #F8FAFC; border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; color: ${borderCol}; flex-shrink: 0;">
+                                ${icon}
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+                                    <h3 style="font-size: 16px; font-weight: 700; color: var(--color-text); margin: 0;">${a.title}</h3>
+                                    ${GrainLayout.getRiskBadgeHtml(a.severity)}
+                                    <span style="font-size: 12px; font-weight: 600; color: var(--color-muted); background: #F1F5F9; padding: 2px 8px; border-radius: 4px;">${a.unit_name} (${a.grain_type})</span>
+                                    ${ackBadge}
+                                </div>
+                                <p style="font-size: 14px; color: var(--color-text); margin: 0 0 10px 0; line-height: 1.5;">${a.message}</p>
+                                <span style="font-size: 12px; color: var(--color-muted); font-weight: 500;">Triggered: ${localTime}</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button type="button" class="btn-outline btn-sm" onclick="openDetailsModal(${a.id})" style="font-size: 13px;">
+                                View Details
+                            </button>
+                            ${ackButton}
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        /**
+         * Opens the Details modal showing exact reading values that caused the alert.
+         */
+        function openDetailsModal(alertId) {
+            const alert = currentAlerts.find(item => item.id === alertId);
+            if (!alert) return;
+
+            const modal = document.getElementById("alert-details-modal");
+            const titleEl = document.getElementById("modal-title");
+            const iconEl = document.getElementById("modal-header-icon");
+            const bodyEl = document.getElementById("modal-body-content");
+            const footerEl = document.getElementById("modal-footer-content");
+
+            let borderCol = "var(--color-risk-safe)";
+            let icon = GrainLayout.icons.safe;
+            const sev = (alert.severity || "Safe").toLowerCase();
+
+            if (sev === "critical") {
+                borderCol = "var(--color-risk-critical)";
+                icon = GrainLayout.icons.critical;
+            } else if (sev === "high") {
+                borderCol = "var(--color-risk-high)";
+                icon = GrainLayout.icons.high;
+            } else if (sev === "medium") {
+                borderCol = "var(--color-risk-medium)";
+                icon = GrainLayout.icons.medium;
+            }
+
+            titleEl.innerText = `${alert.alert_type}: ${alert.title}`;
+            iconEl.innerHTML = icon;
+            iconEl.style.color = borderCol;
+
+            const localTime = formatAlertTime(alert.timestamp);
+            const rv = alert.reading_values || {};
+
+            // Metric values extraction
+            const tempVal = rv.temperature !== undefined ? `${rv.temperature} °C` : "—";
+            const humVal = rv.humidity !== undefined ? `${rv.humidity} % RH` : "—";
+            const gasVal = rv.gas_index !== undefined ? `${rv.gas_index}` : "—";
+            const moistVal = rv.moisture !== undefined ? `${rv.moisture} %` : "—";
+
+            // Optional extra telemetry (e.g. Fluorescence area % or Spoilage probability)
+            let extraMetricsHtml = "";
+            if (rv.fluorescence_area_pct !== undefined) {
+                extraMetricsHtml += `
+                    <div class="metric-cell" style="grid-column: span 2; border-color: ${borderCol}; background: #FFFBEB;">
+                        <div class="metric-cell-label" style="color: #92400E;">UV Fluorescence Area (365nm Optical)</div>
+                        <div class="metric-cell-value" style="color: #B45309;">${rv.fluorescence_area_pct}%</div>
+                    </div>
+                `;
+            } else if (rv.spoilage_probability !== undefined) {
+                extraMetricsHtml += `
+                    <div class="metric-cell" style="grid-column: span 2; border-color: ${borderCol}; background: #FEF2F2;">
+                        <div class="metric-cell-label" style="color: #991B1B;">Spoilage Probability (AI Model)</div>
+                        <div class="metric-cell-value" style="color: #DC2626;">${Math.round(rv.spoilage_probability * 100)}%</div>
+                    </div>
+                `;
+            }
+
+            let thresholdNote = "";
+            if (rv.threshold !== undefined) {
+                thresholdNote = `
+                    <div style="font-size: 13px; color: var(--color-muted); margin-top: 10px; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-weight: 600; color: var(--color-text);">Configured Safety Boundary:</span>
+                        <span>${rv.threshold} (${alert.grain_type})</span>
+                    </div>
+                `;
+            }
+
+            bodyEl.innerHTML = `
+                <!-- Meta Information -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <div style="font-size: 12px; color: var(--color-muted); font-weight: 500;">Storage Unit</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--color-text);">${alert.unit_name}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--color-muted); font-weight: 500;">Grain Variety</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--color-text);">${alert.grain_type}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--color-muted); font-weight: 500;">Severity Level</div>
+                        <div style="margin-top: 2px;">${GrainLayout.getRiskBadgeHtml(alert.severity)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: var(--color-muted); font-weight: 500;">Triggered Timestamp</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--color-text);">${localTime}</div>
+                    </div>
+                </div>
+
+                <!-- Alert Message -->
+                <div style="background: #F8FAFC; border-left: 3px solid ${borderCol}; padding: 12px 14px; border-radius: 4px; margin-bottom: 20px;">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); text-transform: uppercase; margin-bottom: 4px;">Incident Notice</div>
+                    <div style="font-size: 14px; color: var(--color-text); line-height: 1.5;">${alert.message}</div>
+                </div>
+
+                <!-- Cause Reading Values Grid -->
+                <div>
+                    <div style="font-size: 13px; font-weight: 700; color: var(--color-text); margin-bottom: 10px;">
+                        Triggering Sensor Telemetry Values
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Temperature</div>
+                            <div class="metric-cell-value">${tempVal}</div>
+                        </div>
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Relative Humidity</div>
+                            <div class="metric-cell-value">${humVal}</div>
+                        </div>
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Gas Index (MQ-135)</div>
+                            <div class="metric-cell-value">${gasVal}</div>
+                        </div>
+                        <div class="metric-cell">
+                            <div class="metric-cell-label">Grain Moisture</div>
+                            <div class="metric-cell-value">${moistVal}</div>
+                        </div>
+                        ${extraMetricsHtml}
+                    </div>
+                    ${thresholdNote}
+                </div>
+            `;
+
+            // Footer buttons
+            const ackBtnHtml = alert.acknowledged
+                ? `<span style="font-size: 13px; color: var(--color-muted); font-weight: 500; margin-right: auto;">Acknowledged</span>`
+                : `<button type="button" class="btn-primary" onclick="handleAcknowledgeFromModal(${alert.id})" id="modal-ack-btn-${alert.id}">Acknowledge Alert</button>`;
+
+            footerEl.innerHTML = `
+                ${ackBtnHtml}
+                <button type="button" class="btn-outline" onclick="closeDetailsModal()">Close</button>
+            `;
+
+            modal.style.display = "flex";
+        }
+
+        /**
+         * Closes Details modal.
+         */
+        function closeDetailsModal() {
+            document.getElementById("alert-details-modal").style.display = "none";
+        }
+
+        function handleOverlayClick(e) {
+            if (e.target.id === "alert-details-modal") {
+                closeDetailsModal();
+            }
+        }
+
+        /**
+         * Handles acknowledging an alert from card button.
+         */
+        async function handleAcknowledge(alertId) {
+            const btn = document.getElementById(`card-ack-btn-${alertId}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Acknowledging...";
+            }
+
+            try {
+                const res = await acknowledgeAlertApi(alertId);
+                if (res && res.status === "success") {
+                    // Update cache item
+                    const item = currentAlerts.find(a => a.id === alertId);
+                    if (item) item.acknowledged = true;
+                    // Re-render
+                    renderAlertsList(currentAlerts);
+                } else {
+                    alert("Could not acknowledge alert. Please try again.");
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = "Acknowledge";
+                    }
+                }
+            } catch (err) {
+                console.error("Error acknowledging alert:", err);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = "Acknowledge";
+                }
+            }
+        }
+
+        /**
+         * Handles acknowledging an alert from inside modal.
+         */
+        async function handleAcknowledgeFromModal(alertId) {
+            const btn = document.getElementById(`modal-ack-btn-${alertId}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Acknowledging...";
+            }
+
+            try {
+                const res = await acknowledgeAlertApi(alertId);
+                if (res && res.status === "success") {
+                    // Update cache item
+                    const item = currentAlerts.find(a => a.id === alertId);
+                    if (item) item.acknowledged = true;
+                    renderAlertsList(currentAlerts);
+                    openDetailsModal(alertId);
+                }
+            } catch (err) {
+                console.error("Error acknowledging alert:", err);
+            }
+        }
+    </script>
+</body>
+</html>

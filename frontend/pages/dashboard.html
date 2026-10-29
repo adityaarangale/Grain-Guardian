@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Grain Guardian</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Unified Theme Tokens & Layout Styles -->
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+        .active-unit-row {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .active-unit-row:hover {
+            background-color: #F1F5F9;
+        }
+        .active-unit-row.selected-row {
+            background-color: var(--color-brand-green-light) !important;
+            font-weight: 600;
+        }
+        .active-unit-row.selected-row td:first-child {
+            border-left: 3px solid var(--color-brand-green);
+        }
+        .live-strip-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px 16px;
+            background: #F8FAFC;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-select);
+            flex: 1;
+            min-width: 130px;
+        }
+    </style>
+</head>
+<body>
+    <main id="page-content">
+        <div class="grid-12">
+            <!-- ROW 1: Four KPI cards across the FULL width (Safe, Medium, High, Critical) -->
+            <!-- Safe KPI Card -->
+            <div class="col-3">
+                <div class="theme-card" style="border-left: 4px solid var(--color-risk-safe); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--color-risk-safe); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">Safe</span>
+                        <span style="width: 20px; height: 20px; color: var(--color-risk-safe); display: flex;" id="kpi-icon-safe"></span>
+                    </div>
+                    <div class="metric-value" id="kpi-count-safe" style="color: var(--color-text); font-size: 34px;">-</div>
+                    <p style="font-size: 12px; color: var(--color-muted); margin-top: 6px; white-space: nowrap;">Zero biological hotspots</p>
+                </div>
+            </div>
+
+            <!-- Medium KPI Card -->
+            <div class="col-3">
+                <div class="theme-card" style="border-left: 4px solid var(--color-risk-medium); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--color-risk-medium); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">Medium</span>
+                        <span style="width: 20px; height: 20px; color: var(--color-risk-medium); display: flex;" id="kpi-icon-medium"></span>
+                    </div>
+                    <div class="metric-value" id="kpi-count-medium" style="color: var(--color-text); font-size: 34px;">-</div>
+                    <p style="font-size: 12px; color: var(--color-muted); margin-top: 6px; white-space: nowrap;">Approaching thresholds</p>
+                </div>
+            </div>
+
+            <!-- High KPI Card -->
+            <div class="col-3">
+                <div class="theme-card" style="border-left: 4px solid var(--color-risk-high); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--color-risk-high); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">High</span>
+                        <span style="width: 20px; height: 20px; color: var(--color-risk-high); display: flex;" id="kpi-icon-high"></span>
+                    </div>
+                    <div class="metric-value" id="kpi-count-high" style="color: var(--color-text); font-size: 34px;">-</div>
+                    <p style="font-size: 12px; color: var(--color-muted); margin-top: 6px; white-space: nowrap;">Active ventilation advised</p>
+                </div>
+            </div>
+
+            <!-- Critical KPI Card -->
+            <div class="col-3">
+                <div class="theme-card" style="border-left: 4px solid var(--color-risk-critical); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--color-risk-critical); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">Critical</span>
+                        <span style="width: 20px; height: 20px; color: var(--color-risk-critical); display: flex;" id="kpi-icon-critical"></span>
+                    </div>
+                    <div class="metric-value" id="kpi-count-critical" style="color: var(--color-text); font-size: 34px;">-</div>
+                    <p style="font-size: 12px; color: var(--color-muted); margin-top: 6px; white-space: nowrap;">Immediate triage needed</p>
+                </div>
+            </div>
+
+            <!-- ROW 2: "Selected Unit Live Reading" strip for the selected unit -->
+            <div class="col-12">
+                <div class="theme-card" id="selected-unit-strip" style="border-left: 4px solid var(--color-brand-green);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 22px; height: 22px; color: var(--color-brand-green); display: flex;" id="strip-icon-storage"></span>
+                            <h2 style="font-size: 18px; font-weight: 700; color: var(--color-text); margin: 0;">Selected Unit Live Reading</h2>
+                            <span id="strip-unit-tag" style="background: var(--color-brand-green-light); color: var(--color-brand-green); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px;">
+                                Silo A - North Sector
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <span id="strip-risk-badge-slot"></span>
+                            <span style="font-size: 13px; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-risk-safe); display: inline-block;"></span>
+                                <span id="strip-last-updated-text">Last updated: Just now</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Live Metrics Row inside Strip -->
+                    <div id="strip-metrics-container" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                        <!-- Temperature -->
+                        <div class="live-strip-metric">
+                            <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-temp"></span> Temperature
+                            </div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-temp">-</div>
+                        </div>
+
+                        <!-- Humidity -->
+                        <div class="live-strip-metric">
+                            <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-humidity"></span> Humidity
+                            </div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-humidity">-</div>
+                        </div>
+
+                        <!-- Gas Index -->
+                        <div class="live-strip-metric">
+                            <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-gas"></span> Gas Index
+                            </div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-gas">-</div>
+                        </div>
+
+                        <!-- Moisture -->
+                        <div class="live-strip-metric">
+                            <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-moisture"></span> Grain Moisture
+                            </div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-moisture">-</div>
+                        </div>
+
+                        <!-- Safe Storage Days Range -->
+                        <div class="live-strip-metric" style="background: var(--color-brand-green-light); border-color: rgba(11, 61, 46, 0.2);">
+                            <div style="font-size: 12px; font-weight: 700; color: var(--color-brand-green); display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-days"></span> Safe-Days Range
+                            </div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-brand-green);" id="strip-safe-days">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 3: "Active Units" table with columns Unit, Grain, Temp, Humidity, Gas Index, Moisture, Risk, Last Updated -->
+            <div class="col-12">
+                <div class="theme-card">
+                    <div class="theme-card-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="table-icon-units"></span>
+                                Active Units
+                            </div>
+                            <p style="font-size: 13px; color: var(--color-muted); margin-top: 2px;">Click any row to switch monitored unit. Updates every 5 seconds.</p>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 12px; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-risk-safe); animation: statusPulse 2s infinite;"></span>
+                                Auto-refresh 5s
+                            </span>
+                            <button type="button" class="btn-outline btn-sm" onclick="loadDashboardData()" title="Force Refresh">
+                                <span style="width: 15px; height: 15px; display: flex;" id="table-icon-refresh"></span>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table Container -->
+                    <div id="active-units-table-container" style="overflow-x: auto;">
+                        <!-- Dynamically populated table or empty state -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 4: Two small cards: "Latest Alerts" (3 items, link to Alerts) and "Last Scan" (status, fluorescence %, time, link to Scan) -->
+            <!-- Latest Alerts Card (Col-6) -->
+            <div class="col-6">
+                <div class="theme-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="theme-card-header" style="margin-bottom: 12px;">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="card-icon-alerts"></span>
+                                Latest Alerts
+                            </div>
+                            <a href="alerts.html" style="font-size: 13px; font-weight: 600; color: var(--color-brand-green); text-decoration: none;">
+                                View All &rarr;
+                            </a>
+                        </div>
+                        <div id="latest-alerts-container" style="display: flex; flex-direction: column; gap: 10px;">
+                            <!-- 3 items -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Last Scan Card (Col-6) -->
+            <div class="col-6">
+                <div class="theme-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="theme-card-header" style="margin-bottom: 12px;">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="card-icon-scan"></span>
+                                Last Scan
+                            </div>
+                            <a href="contamination-scan.html" style="font-size: 13px; font-weight: 600; color: var(--color-brand-green); text-decoration: none;">
+                                Go to Scan &rarr;
+                            </a>
+                        </div>
+                        <div id="last-scan-container" style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select); padding: 16px;">
+                            <!-- Last scan details: status risk badge, fluorescence %, time -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="../js/state.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        let lastUpdatedTimestamp = Date.now();
+        let autoRefreshInterval = null;
+        let tickerInterval = null;
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Initialize Shared Layout (Sidebar, Topbar with Grain/Unit selects)
+            await GrainLayout.init({
+                title: "Dashboard",
+                subtitle: "Facility overview",
+                activeNav: "dashboard"
+            });
+
+            // Set Icons using inline SVG
+            document.getElementById("kpi-icon-safe").innerHTML = GrainLayout.icons.safe;
+            document.getElementById("kpi-icon-medium").innerHTML = GrainLayout.icons.medium;
+            document.getElementById("kpi-icon-high").innerHTML = GrainLayout.icons.high;
+            document.getElementById("kpi-icon-critical").innerHTML = GrainLayout.icons.critical;
+
+            document.getElementById("strip-icon-storage").innerHTML = GrainLayout.icons.storage;
+            document.getElementById("strip-icon-temp").innerHTML = GrainLayout.icons.temp;
+            document.getElementById("strip-icon-humidity").innerHTML = GrainLayout.icons.humidity;
+            document.getElementById("strip-icon-gas").innerHTML = GrainLayout.icons.gas;
+            document.getElementById("strip-icon-moisture").innerHTML = GrainLayout.icons.moisture;
+            document.getElementById("strip-icon-days").innerHTML = GrainLayout.icons.ai;
+
+            document.getElementById("table-icon-units").innerHTML = GrainLayout.icons.storage;
+            document.getElementById("table-icon-refresh").innerHTML = GrainLayout.icons.refresh;
+            document.getElementById("card-icon-alerts").innerHTML = GrainLayout.icons.alerts;
+            document.getElementById("card-icon-scan").innerHTML = GrainLayout.icons.scan;
+
+            // Load initial data
+            await loadDashboardData();
+
+            // Auto-refresh every 5s per Requirement 3
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(loadDashboardData, 5000);
+
+            // Time ticker every 1s ("Last updated Xs ago")
+            if (tickerInterval) clearInterval(tickerInterval);
+            tickerInterval = setInterval(updateRelativeTicker, 1000);
+
+            // Re-render when global state changes (e.g. Grain or Unit select changed in topbar)
+            GrainState.onStateChange(() => {
+                loadDashboardData();
+            });
+        });
+
+        function updateRelativeTicker() {
+            const tickerElem = document.getElementById("strip-last-updated-text");
+            if (!tickerElem) return;
+
+            const seconds = Math.floor((Date.now() - lastUpdatedTimestamp) / 1000);
+            if (seconds < 2) {
+                tickerElem.textContent = "Last updated: Just now";
+            } else {
+                tickerElem.textContent = `Last updated: ${seconds}s ago`;
+            }
+        }
+
+        async function loadDashboardData() {
+            const selectedGrain = GrainState.getSelectedGrain();
+            let selectedUnitId = GrainState.getSelectedUnitId();
+            const isSimulate = GrainState.isSimulateMode();
+
+            // 1. Fetch all storage units for facility
+            let allUnits = [];
+            try {
+                const res = await fetchStorageUnits();
+                if (res && Array.isArray(res.storage_units)) {
+                    allUnits = res.storage_units;
+                }
+            } catch (err) {
+                console.warn("Error fetching units:", err);
+            }
+
+            if (allUnits.length === 0 && isSimulate) {
+                allUnits = [
+                    { id: 1, location: "Silo A - North Sector", grain_type: "wheat" },
+                    { id: 2, location: "Warehouse 2 - Bin 4", grain_type: "maize" },
+                    { id: 3, location: "Cooperative Depot - Store 1", grain_type: "groundnut" },
+                    { id: 4, location: "Silo D-2", grain_type: "maize" }
+                ];
+            }
+
+            // If selectedUnitId is null and we have units matching selected grain, pick the first
+            if (!selectedUnitId && allUnits.length > 0) {
+                const matchingGrainUnit = allUnits.find(u => u.grain_type.toLowerCase() === selectedGrain.toLowerCase());
+                if (matchingGrainUnit) {
+                    selectedUnitId = matchingGrainUnit.id;
+                    GrainState.setSelectedUnitId(selectedUnitId, false);
+                } else {
+                    selectedUnitId = allUnits[0].id;
+                    GrainState.setSelectedUnitId(selectedUnitId, false);
+                }
+            }
+
+            // 2. Fetch telemetry & predictions for all units to compute KPI counts and populate table
+            const unitSummaries = [];
+            let countSafe = 0;
+            let countMedium = 0;
+            let countHigh = 0;
+            let countCritical = 0;
+
+            for (const unit of allUnits) {
+                let summary = null;
+                try {
+                    summary = await fetchDashboardSummary(unit.id);
+                } catch (e) {
+                    console.warn(`Could not load summary for unit ${unit.id}:`, e);
+                }
+
+                if (!summary && isSimulate) {
+                    summary = getSimulatedSummaryForUnit(unit);
+                }
+
+                const reading = summary ? summary.latest_sensor_reading : null;
+                const pred = summary ? summary.latest_prediction : null;
+                const scan = summary ? summary.latest_scan_result : null;
+
+                const rawRisk = pred && pred.risk_level ? pred.risk_level : "Safe";
+                const normalizedRisk = normalizeRiskLevel(rawRisk);
+
+                if (normalizedRisk === "Critical") countCritical++;
+                else if (normalizedRisk === "High") countHigh++;
+                else if (normalizedRisk === "Medium") countMedium++;
+                else countSafe++;
+
+                unitSummaries.push({
+                    unit,
+                    reading,
+                    pred,
+                    scan,
+                    risk: normalizedRisk
+                });
+            }
+
+            // Update Row 1 KPI cards: dynamic counts from API
+            document.getElementById("kpi-count-safe").textContent = countSafe;
+            document.getElementById("kpi-count-medium").textContent = countMedium;
+            document.getElementById("kpi-count-high").textContent = countHigh;
+            document.getElementById("kpi-count-critical").textContent = countCritical;
+
+            // 3. Render Row 2: Selected Unit Live Reading Strip
+            const activeSummary = unitSummaries.find(s => s.unit.id === selectedUnitId) || unitSummaries[0];
+            renderLiveReadingStrip(activeSummary, selectedUnitId);
+
+            // 4. Render Row 3: Active Units Table
+            renderActiveUnitsTable(unitSummaries, selectedUnitId);
+
+            // 5. Render Row 4: Latest Alerts & Last Scan
+            renderLatestAlerts(unitSummaries, isSimulate);
+            renderLastScan(activeSummary, isSimulate);
+
+            lastUpdatedTimestamp = Date.now();
+            updateRelativeTicker();
+        }
+
+        function normalizeRiskLevel(risk) {
+            if (!risk) return "Safe";
+            const clean = String(risk).trim().toLowerCase();
+            if (clean === "low" || clean === "low risk" || clean === "safe") return "Safe";
+            if (clean === "medium" || clean === "medium risk") return "Medium";
+            if (clean === "high" || clean === "high risk") return "High";
+            if (clean === "critical" || clean === "critical risk") return "Critical";
+            return "Safe";
+        }
+
+        function getSimulatedSummaryForUnit(unit) {
+            const riskMap = { 1: "Safe", 2: "Safe", 3: "Medium", 4: "Safe" };
+            const tempMap = { 1: 28.5, 2: 24.2, 3: 31.8, 4: 25.1 };
+            const humMap = { 1: 62.0, 2: 55.4, 3: 68.2, 4: 58.0 };
+            const gasMap = { 1: 145, 2: 85, 3: 210, 4: 92 };
+            const moistMap = { 1: 13.2, 2: 12.8, 3: 15.4, 4: 13.0 };
+
+            return {
+                storage_unit: unit,
+                latest_sensor_reading: {
+                    temperature: tempMap[unit.id] || 26.0,
+                    humidity: humMap[unit.id] || 60.0,
+                    gas_index: gasMap[unit.id] || 110,
+                    moisture: moistMap[unit.id] || 13.0,
+                    timestamp: "Just now"
+                },
+                latest_prediction: {
+                    risk_level: riskMap[unit.id] || "Safe",
+                    safe_days_remaining: (riskMap[unit.id] === "Medium") ? 6 : 14,
+                    recommendation: "Continuous monitoring active."
+                },
+                latest_scan_result: {
+                    contamination_risk: "Safe",
+                    confidence: 0.94,
+                    timestamp: "Today, 10:45 AM"
+                }
+            };
+        }
+
+        function renderLiveReadingStrip(summary, selectedUnitId) {
+            const tagElem = document.getElementById("strip-unit-tag");
+            const riskSlot = document.getElementById("strip-risk-badge-slot");
+            const tempElem = document.getElementById("strip-temp");
+            const humElem = document.getElementById("strip-humidity");
+            const gasElem = document.getElementById("strip-gas");
+            const moistElem = document.getElementById("strip-moisture");
+            const daysElem = document.getElementById("strip-safe-days");
+
+            if (!summary || !summary.unit) {
+                tagElem.textContent = "No Unit Selected";
+                riskSlot.innerHTML = "";
+                tempElem.textContent = "-";
+                humElem.textContent = "-";
+                if (gasElem) gasElem.textContent = "-";
+                moistElem.textContent = "-";
+                daysElem.textContent = "-";
+                return;
+            }
+
+            const unit = summary.unit;
+            const reading = summary.reading;
+            const pred = summary.pred;
+            const risk = summary.risk;
+
+            tagElem.textContent = `${unit.location} · ${unit.grain_type.toUpperCase()}`;
+            riskSlot.innerHTML = GrainLayout.getRiskBadgeHtml(risk);
+
+            if (reading) {
+                tempElem.textContent = `${reading.temperature}°C`;
+                humElem.textContent = `${reading.humidity}%`;
+                const gVal = reading.gas_index !== undefined ? reading.gas_index : "N/A";
+                if (gasElem) gasElem.textContent = `${gVal}`;
+                moistElem.textContent = `${reading.moisture}%`;
+            } else {
+                tempElem.textContent = "N/A";
+                humElem.textContent = "N/A";
+                if (gasElem) gasElem.textContent = "N/A";
+                moistElem.textContent = "N/A";
+            }
+
+            if (pred && pred.safe_days_remaining !== undefined) {
+                daysElem.textContent = `${pred.safe_days_remaining} Days`;
+            } else {
+                daysElem.textContent = "14 Days";
+            }
+        }
+
+        function renderActiveUnitsTable(unitSummaries, selectedUnitId) {
+            const container = document.getElementById("active-units-table-container");
+            if (!container) return;
+
+            if (unitSummaries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 40px 20px;">
+                        <div class="empty-state-icon">${GrainLayout.icons.storage}</div>
+                        <div class="empty-state-title">No units yet. Add a storage unit to start monitoring.</div>
+                        <div class="empty-state-desc">Register your facility silos or warehouses to receive continuous environmental sensor telemetry and AI predictions.</div>
+                        <button type="button" class="btn-primary" onclick="GrainLayout.openAddUnitModal()">+ Add Storage Unit</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 750px;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--color-border); text-align: left; color: var(--color-muted);">
+                            <th style="padding: 12px 14px;">Unit</th>
+                            <th style="padding: 12px 14px;">Grain</th>
+                            <th style="padding: 12px 14px;">Temp</th>
+                            <th style="padding: 12px 14px;">Humidity</th>
+                            <th style="padding: 12px 14px;">Gas Index</th>
+                            <th style="padding: 12px 14px;">Moisture</th>
+                            <th style="padding: 12px 14px;">Risk</th>
+                            <th style="padding: 12px 14px;">Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${unitSummaries.map(s => {
+                            const u = s.unit;
+                            const r = s.reading;
+                            const isSelected = u.id === selectedUnitId;
+                            const grainCapitalized = u.grain_type ? (u.grain_type.charAt(0).toUpperCase() + u.grain_type.slice(1)) : "Wheat";
+
+                            return `
+                                <tr class="active-unit-row ${isSelected ? 'selected-row' : ''}" onclick="selectUnitFromTable(${u.id}, '${grainCapitalized}')" style="border-bottom: 1px solid var(--color-border);">
+                                    <td style="padding: 12px 14px; font-weight: 600; color: var(--color-text);">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="width: 16px; height: 16px; color: ${isSelected ? 'var(--color-brand-green)' : 'var(--color-muted)'}; display: flex;">${GrainLayout.icons.storage}</span>
+                                            <span>${u.location}</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px 14px;">${grainCapitalized}</td>
+                                    <td style="padding: 12px 14px;">${r ? r.temperature + '°C' : 'N/A'}</td>
+                                    <td style="padding: 12px 14px;">${r ? r.humidity + '%' : 'N/A'}</td>
+                                    <td style="padding: 12px 14px;">${r && r.gas_index !== undefined ? r.gas_index : 'N/A'}</td>
+                                    <td style="padding: 12px 14px;">${r ? r.moisture + '%' : 'N/A'}</td>
+                                    <td style="padding: 12px 14px;">${GrainLayout.getRiskBadgeHtml(s.risk)}</td>
+                                    <td style="padding: 12px 14px; color: var(--color-muted);">${r && r.timestamp ? r.timestamp : 'Active'}</td>
+                                </tr>
+                            `;
+                        }).join("")}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function selectUnitFromTable(unitId, grainName) {
+            GrainState.setSelectedGrain(grainName, false);
+            GrainState.setSelectedUnitId(unitId, true);
+        }
+
+        function renderLatestAlerts(unitSummaries, isSimulate) {
+            const container = document.getElementById("latest-alerts-container");
+            if (!container) return;
+
+            let alerts = [];
+
+            if (isSimulate) {
+                alerts = [
+                    { title: "Critical Gas Index Spike Detected", risk: "Critical", unit: "Silo A-1", time: "10:45 AM" },
+                    { title: "Hotspot Formation Risk", risk: "High", unit: "Bin 12", time: "09:15 AM" },
+                    { title: "Upper Headspace Moisture Rising", risk: "Medium", unit: "Store 1", time: "08:30 AM" }
+                ];
+            } else {
+                // Synthesize from units
+                for (const s of unitSummaries) {
+                    if (s.risk !== "Safe") {
+                        alerts.push({
+                            title: `${s.risk} Risk Telemetry Threshold`,
+                            risk: s.risk,
+                            unit: s.unit.location,
+                            time: (s.reading && s.reading.timestamp) ? s.reading.timestamp : "Active"
+                        });
+                    }
+                    if (alerts.length >= 3) break;
+                }
+
+                if (alerts.length === 0) {
+                    alerts = [
+                        { title: "Facility Telemetry Operational", risk: "Safe", unit: "All Silos", time: "Active" },
+                        { title: "Automated Sensor Health Check", risk: "Safe", unit: "Calibration", time: "Today" },
+                        { title: "Ventilation System Standby", risk: "Safe", unit: "North Silo", time: "Today" }
+                    ];
+                }
+            }
+
+            container.innerHTML = alerts.slice(0, 3).map(a => `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select);">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-size: 14px; font-weight: 600; color: var(--color-text);">${a.title}</span>
+                        <span style="font-size: 12px; color: var(--color-muted);">${a.unit} · ${a.time}</span>
+                    </div>
+                    ${GrainLayout.getRiskBadgeHtml(a.risk)}
+                </div>
+            `).join("");
+        }
+
+        function renderLastScan(summary, isSimulate) {
+            const container = document.getElementById("last-scan-container");
+            if (!container) return;
+
+            let scan = summary ? summary.scan : null;
+
+            if ((!scan || !scan.contamination_risk || scan.contamination_risk === "Not Scanned") && isSimulate) {
+                scan = {
+                    contamination_risk: "Safe",
+                    confidence: 0.94,
+                    timestamp: "Today, 10:15 AM"
+                };
+            }
+
+            if (!scan || !scan.contamination_risk || scan.contamination_risk === "Not Scanned") {
+                container.innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 12px;">
+                        <p style="font-size: 13px; color: var(--color-muted); margin-bottom: 8px;">No optical UV fluorescence scans uploaded yet.</p>
+                        <a href="contamination-scan.html" class="btn-primary btn-sm" style="text-decoration: none;">Upload Sample Scan</a>
+                    </div>
+                `;
+                return;
+            }
+
+            const risk = normalizeRiskLevel(scan.contamination_risk);
+            const confPct = Math.round((scan.confidence || 0.91) * 100);
+            const timeStr = scan.timestamp || "Today, 10:15 AM";
+
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); text-transform: uppercase;">Aflatoxin Screening</div>
+                        <div style="font-size: 16px; font-weight: 700; color: var(--color-text); margin-top: 2px;">365nm UV Sample</div>
+                    </div>
+                    ${GrainLayout.getRiskBadgeHtml(risk)}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--color-text); border-top: 1px solid var(--color-border); padding-top: 10px;">
+                    <span>Luminescence Match: <strong>${confPct}% Confidence</strong></span>
+                    <span style="color: var(--color-muted);">${timeStr}</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Storage Monitoring - Grain Guardian</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Unified Theme Tokens & Styles -->
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+        .sensor-card {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .sensor-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .scrollable-table-card {
+            max-height: 420px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-select);
+        }
+        .scrollable-table-card table thead th {
+            position: sticky;
+            top: 0;
+            background: #F8FAFC;
+            z-index: 10;
+            box-shadow: 0 1px 0 var(--color-border);
+        }
+    </style>
+</head>
+<body>
+    <main id="page-content">
+        <div class="grid-12">
+            <!-- ROW 1: Four Cards in One Row (Col-3 each): Temperature, Humidity, Gas Index, Grain Moisture -->
+            <!-- 1. Temperature Card (DHT22) -->
+            <div class="col-3">
+                <div class="theme-card sensor-card" id="card-temp" style="border-left: 4px solid var(--color-risk-safe);">
+                    <div>
+                        <div class="metric-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="icon-temp"></span>
+                                Temperature
+                            </span>
+                            <span id="dot-temp" style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-risk-safe);"></span>
+                        </div>
+                        <div class="metric-value" id="val-temp" style="font-size: 32px; font-weight: 700; color: var(--color-text);">-<span class="metric-unit">°C</span></div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-muted);">DHT22</span>
+                        <span id="status-temp" class="risk-badge risk-badge-safe" style="font-size: 11px; padding: 2px 8px;">Safe</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Humidity Card (DHT22) -->
+            <div class="col-3">
+                <div class="theme-card sensor-card" id="card-humidity" style="border-left: 4px solid var(--color-risk-safe);">
+                    <div>
+                        <div class="metric-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="icon-humidity"></span>
+                                Humidity
+                            </span>
+                            <span id="dot-humidity" style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-risk-safe);"></span>
+                        </div>
+                        <div class="metric-value" id="val-humidity" style="font-size: 32px; font-weight: 700; color: var(--color-text);">-<span class="metric-unit">% RH</span></div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-muted);">DHT22</span>
+                        <span id="status-humidity" class="risk-badge risk-badge-safe" style="font-size: 11px; padding: 2px 8px;">Safe</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Gas Index Card (MQ-135, baseline-relative index) -->
+            <div class="col-3">
+                <div class="theme-card sensor-card" id="card-gas" style="border-left: 4px solid var(--color-risk-safe);">
+                    <div>
+                        <div class="metric-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="icon-gas"></span>
+                                Gas Index
+                            </span>
+                            <span id="dot-gas" style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-risk-safe);"></span>
+                        </div>
+                        <div class="metric-value" id="val-gas" style="font-size: 32px; font-weight: 700; color: var(--color-text);">-</div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-muted);">MQ-135 (Baseline-relative)</span>
+                        <span id="status-gas" class="risk-badge risk-badge-safe" style="font-size: 11px; padding: 2px 8px;">Safe</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Grain Moisture Card (Capacitive Probe V1.2) -->
+            <div class="col-3">
+                <div class="theme-card sensor-card" id="card-moisture" style="border-left: 4px solid var(--color-risk-safe);">
+                    <div>
+                        <div class="metric-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="icon-moisture"></span>
+                                Grain Moisture
+                            </span>
+                            <span id="dot-moisture" style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-risk-safe);"></span>
+                        </div>
+                        <div class="metric-value" id="val-moisture" style="font-size: 32px; font-weight: 700; color: var(--color-text);">-<span class="metric-unit">%</span></div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--color-muted);">Capacitive Probe V1.2</span>
+                        <span id="status-moisture" class="risk-badge risk-badge-safe" style="font-size: 11px; padding: 2px 8px;">Safe</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 2: System Status Card -->
+            <div class="col-12">
+                <div class="theme-card" style="border-left: 4px solid var(--color-brand-green);">
+                    <div class="theme-card-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                        <div class="theme-card-title">
+                            <span style="color: var(--color-brand-green); width: 22px; height: 22px; display: flex;" id="icon-system"></span>
+                            <span>System Status</span>
+                            <span id="system-unit-tag" style="font-size: 12px; font-weight: 600; background: var(--color-brand-green-light); color: var(--color-brand-green); padding: 3px 8px; border-radius: 4px; margin-left: 6px;">
+                                Unit Telemetry Node
+                            </span>
+                        </div>
+                        <div id="calibration-alert-slot" style="font-size: 13px; font-weight: 600; color: var(--color-risk-safe); display: none;"></div>
+                    </div>
+
+                    <!-- 4 Hardware Parameters in Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: center;">
+                        <!-- Controller Status (<15s = Connected) -->
+                        <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select); padding: 14px;">
+                            <div class="metric-label" style="margin-bottom: 6px;">Controller</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div id="controller-chip" class="status-chip live" style="height: 30px;">
+                                    <span class="status-dot"></span>
+                                    <span id="controller-status-text">Connected</span>
+                                </div>
+                            </div>
+                            <span id="controller-age-label" style="font-size: 12px; color: var(--color-muted); display: block; margin-top: 6px;">Age: &lt;5s</span>
+                        </div>
+
+                        <!-- Last Reading Time -->
+                        <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select); padding: 14px;">
+                            <div class="metric-label" style="margin-bottom: 6px;">Last Reading Time</div>
+                            <div style="font-size: 16px; font-weight: 700; color: var(--color-text);" id="sys-last-reading-time">-</div>
+                            <span style="font-size: 12px; color: var(--color-muted); display: block; margin-top: 6px;" id="sys-reading-age">Just now</span>
+                        </div>
+
+                        <!-- Serial Port -->
+                        <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select); padding: 14px;">
+                            <div class="metric-label" style="margin-bottom: 6px;">Serial Port</div>
+                            <div style="font-size: 16px; font-weight: 700; color: var(--color-text);">COM3 (115200 baud)</div>
+                            <span style="font-size: 12px; color: var(--color-muted); display: block; margin-top: 6px;">USB-UART ESP32 Bridge</span>
+                        </div>
+
+                        <!-- MQ-135 Clean-Air Baseline with Set Baseline Button -->
+                        <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select); padding: 14px;">
+                            <div class="metric-label" style="margin-bottom: 6px;">MQ-135 Clean-Air Baseline</div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                                <div>
+                                    <span style="font-size: 20px; font-weight: 700; color: var(--color-brand-green);" id="mq135-baseline-val">75</span>
+                                    <span style="font-size: 12px; color: var(--color-muted); display: block;">Raw ADC ref</span>
+                                </div>
+                                <button type="button" class="btn-primary btn-sm" id="btn-set-baseline" onclick="setMq135Baseline()" title="Store current raw gas reading as clean-air reference">
+                                    Set baseline
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 3: Recent Sensor Logs Table (Last 20 Readings, Newest First, Scroll Inside Card) -->
+            <div class="col-12">
+                <div class="theme-card">
+                    <div class="theme-card-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-logs-table"></span>
+                                <span>Recent Sensor Logs</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--color-muted); margin-top: 2px;">Last 20 readings (newest first). Auto-refreshes every 5 seconds.</p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 12px; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-risk-safe); animation: statusPulse 2s infinite;"></span>
+                                Auto-refresh 5s
+                            </span>
+                            <button type="button" class="btn-outline btn-sm" onclick="fetchStorageMonitoringData()" title="Manual Refresh">
+                                <span style="width: 15px; height: 15px; display: flex;" id="icon-logs-refresh"></span>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Table Card (Max height 420px, scroll inside) -->
+                    <div class="scrollable-table-card" id="sensor-logs-container">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="../js/state.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        // Per-Grain Agronomic Thresholds (Safe / Medium / High)
+        const GRAIN_THRESHOLDS = {
+            Wheat: {
+                temp: { safe: 25.0, medium: 30.0 },
+                humidity: { safe: 65.0, medium: 72.0 },
+                gas: { safe: 120, medium: 180 },
+                moisture: { safe: 13.5, medium: 15.0 }
+            },
+            Rice: {
+                temp: { safe: 24.0, medium: 28.0 },
+                humidity: { safe: 65.0, medium: 70.0 },
+                gas: { safe: 120, medium: 180 },
+                moisture: { safe: 13.0, medium: 14.5 }
+            },
+            Maize: {
+                temp: { safe: 25.0, medium: 30.0 },
+                humidity: { safe: 65.0, medium: 72.0 },
+                gas: { safe: 120, medium: 180 },
+                moisture: { safe: 13.5, medium: 15.0 }
+            },
+            Groundnut: {
+                temp: { safe: 22.0, medium: 26.0 },
+                humidity: { safe: 60.0, medium: 68.0 },
+                gas: { safe: 110, medium: 170 },
+                moisture: { safe: 7.5, medium: 9.0 }
+            },
+            Pulses: {
+                temp: { safe: 24.0, medium: 28.0 },
+                humidity: { safe: 62.0, medium: 70.0 },
+                gas: { safe: 120, medium: 180 },
+                moisture: { safe: 11.5, medium: 13.5 }
+            }
+        };
+
+        const RISK_COLORS = {
+            Safe: "var(--color-risk-safe)",
+            Medium: "var(--color-risk-medium)",
+            High: "var(--color-risk-high)",
+            Critical: "var(--color-risk-critical)"
+        };
+
+        let lastReadingTimestamp = Date.now();
+        let lastRawGasReading = 75;
+        let autoRefreshTimer = null;
+        let controllerAgeTimer = null;
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Shared Layout injection (sets title "Storage Monitoring / Live sensor readings" and fixed 260px sidebar brand on ONE line)
+            await GrainLayout.init({
+                title: "Storage Monitoring",
+                subtitle: "Live sensor readings",
+                activeNav: "storage-monitoring"
+            });
+
+            // Set inline SVG icons
+            document.getElementById("icon-temp").innerHTML = GrainLayout.icons.temp;
+            document.getElementById("icon-humidity").innerHTML = GrainLayout.icons.humidity;
+            document.getElementById("icon-gas").innerHTML = GrainLayout.icons.gas;
+            document.getElementById("icon-moisture").innerHTML = GrainLayout.icons.moisture;
+            document.getElementById("icon-system").innerHTML = GrainLayout.icons.storage;
+            document.getElementById("icon-logs-table").innerHTML = GrainLayout.icons.analytics;
+            document.getElementById("icon-logs-refresh").innerHTML = GrainLayout.icons.refresh;
+
+            // Load baseline
+            loadBaselineValue();
+
+            // Initial fetch
+            await fetchStorageMonitoringData();
+
+            // Auto-refresh every 5s per Requirement 4
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = setInterval(fetchStorageMonitoringData, 5000);
+
+            // Controller age timer (evaluates age <15s every 1s)
+            if (controllerAgeTimer) clearInterval(controllerAgeTimer);
+            controllerAgeTimer = setInterval(updateControllerStatusAge, 1000);
+
+            // Re-render when global unit or grain changes
+            GrainState.onStateChange(() => {
+                fetchStorageMonitoringData();
+            });
+        });
+
+        async function loadBaselineValue() {
+            try {
+                if (typeof fetchBaseline === "function") {
+                    const res = await fetchBaseline();
+                    if (res && res.baseline !== undefined) {
+                        document.getElementById("mq135-baseline-val").textContent = res.baseline;
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not fetch baseline:", e);
+            }
+        }
+
+        async function setMq135Baseline() {
+            const unitId = GrainState.getSelectedUnitId() || 1;
+            const btn = document.getElementById("btn-set-baseline");
+            const alertSlot = document.getElementById("calibration-alert-slot");
+
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await calibrateBaseline(unitId, lastRawGasReading);
+                if (res && res.status === "success") {
+                    document.getElementById("mq135-baseline-val").textContent = res.baseline;
+                    if (alertSlot) {
+                        alertSlot.textContent = `Baseline calibrated to ${res.baseline}`;
+                        alertSlot.style.display = "block";
+                        setTimeout(() => { alertSlot.style.display = "none"; }, 4000);
+                    }
+                }
+            } catch (err) {
+                console.error("Error setting baseline:", err);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        function updateControllerStatusAge() {
+            const chip = document.getElementById("controller-chip");
+            const statusText = document.getElementById("controller-status-text");
+            const ageLabel = document.getElementById("controller-age-label");
+            const readingAgeElem = document.getElementById("sys-reading-age");
+
+            const ageSeconds = Math.floor((Date.now() - lastReadingTimestamp) / 1000);
+
+            if (ageLabel) ageLabel.textContent = `Age: ${ageSeconds}s`;
+            if (readingAgeElem) readingAgeElem.textContent = ageSeconds < 2 ? "Just now" : `${ageSeconds}s ago`;
+
+            // Requirement 3: Controller Connected if last reading age < 15s, otherwise Offline
+            if (ageSeconds < 15) {
+                if (chip) chip.className = "status-chip live";
+                if (statusText) statusText.textContent = "Connected";
+            } else {
+                if (chip) chip.className = "status-chip offline";
+                if (statusText) statusText.textContent = "Offline";
+            }
+        }
+
+        let currentApiThresholds = null;
+
+        function evaluateThreshold(metricType, value, grainName) {
+            const thresholds = (currentApiThresholds && currentApiThresholds[metricType])
+                ? currentApiThresholds
+                : (GRAIN_THRESHOLDS[grainName] || GRAIN_THRESHOLDS.Wheat);
+            const t = thresholds[metricType];
+            if (!t || value === null || value === undefined || isNaN(value)) {
+                return { level: "Safe", color: RISK_COLORS.Safe, badgeClass: "risk-badge-safe" };
+            }
+
+            if (value <= t.safe) {
+                return { level: "Safe", color: RISK_COLORS.Safe, badgeClass: "risk-badge-safe" };
+            } else if (value <= t.medium) {
+                return { level: "Medium", color: RISK_COLORS.Medium, badgeClass: "risk-badge-medium" };
+            } else {
+                return { level: "High", color: RISK_COLORS.High, badgeClass: "risk-badge-high" };
+            }
+        }
+
+        async function fetchStorageMonitoringData() {
+            const unitId = GrainState.getSelectedUnitId();
+            const grain = GrainState.getSelectedGrain();
+            const isSimulate = GrainState.isSimulateMode();
+
+            const sysUnitTag = document.getElementById("system-unit-tag");
+            if (sysUnitTag) sysUnitTag.textContent = unitId ? `Unit #${unitId} (${grain})` : `No Unit (${grain})`;
+
+            if (!unitId) {
+                renderEmptyCards();
+                renderLogsTable([]);
+                return;
+            }
+
+            // Fetch live reading summary from API
+            let summary = null;
+            try {
+                summary = await fetchDashboardSummary(unitId);
+                if (summary && summary.thresholds) {
+                    currentApiThresholds = summary.thresholds;
+                }
+            } catch (err) {
+                console.warn("Error fetching dashboard summary for monitoring:", err);
+            }
+
+            // If thresholds not yet populated from summary, fetch per-grain thresholds from API endpoint
+            if (!currentApiThresholds && typeof fetchGrainThresholds === "function") {
+                try {
+                    const tRes = await fetchGrainThresholds(grain);
+                    if (tRes && tRes.thresholds) {
+                        currentApiThresholds = tRes.thresholds;
+                    }
+                } catch (e) {
+                    console.warn("Using fallback grain thresholds:", e);
+                }
+            }
+
+            // Fetch last 20 readings
+            let readings = [];
+            try {
+                if (typeof fetchSensorReadings === "function") {
+                    const res = await fetchSensorReadings(unitId, 20);
+                    if (res && Array.isArray(res.readings)) {
+                        readings = res.readings;
+                    }
+                }
+            } catch (e) {
+                console.warn("Error fetching readings:", e);
+            }
+
+            // Fallback for simulate mode
+            if (!summary && isSimulate) {
+                summary = {
+                    storage_unit: { id: unitId, location: `Silo A-1 (${grain})`, grain_type: grain.toLowerCase() },
+                    latest_sensor_reading: {
+                        temperature: 24.5,
+                        humidity: 58.2,
+                        gas_index: 95,
+                        moisture: 13.1,
+                        timestamp: "Today, 11:00 AM"
+                    }
+                };
+            }
+
+            if (readings.length === 0 && isSimulate) {
+                readings = generateSimulatedReadings(unitId, 20);
+            }
+
+            const latestReading = summary ? summary.latest_sensor_reading : (readings.length > 0 ? readings[0] : null);
+
+            if (!latestReading) {
+                renderEmptyCards();
+                renderLogsTable([]);
+                return;
+            }
+
+            lastReadingTimestamp = Date.now();
+            lastRawGasReading = latestReading.gas_index !== undefined ? latestReading.gas_index : 75;
+
+            // Update System Status Card details
+            const timeStr = latestReading.timestamp || "Just now";
+            document.getElementById("sys-last-reading-time").textContent = timeStr;
+            updateControllerStatusAge();
+
+            // Populate the 4 Cards in one row with threshold-based colors
+            updateCardMetric("temp", latestReading.temperature, "°C", grain, "temp");
+            updateCardMetric("humidity", latestReading.humidity, "% RH", grain, "humidity");
+            updateCardMetric("gas", lastRawGasReading, "", grain, "gas");
+            updateCardMetric("moisture", latestReading.moisture, "%", grain, "moisture");
+
+            // Populate Recent Sensor Logs table (last 20 readings, newest first, Time, Temp, Humidity, Gas Index, Moisture)
+            renderLogsTable(readings);
+        }
+
+        function updateCardMetric(cardKey, val, unitSuffix, grain, metricThresholdKey) {
+            const card = document.getElementById(`card-${cardKey}`);
+            const valElem = document.getElementById(`val-${cardKey}`);
+            const dot = document.getElementById(`dot-${cardKey}`);
+            const statusBadge = document.getElementById(`status-${cardKey}`);
+
+            if (val === null || val === undefined) {
+                valElem.innerHTML = `-<span class="metric-unit">${unitSuffix}</span>`;
+                return;
+            }
+
+            const evalResult = evaluateThreshold(metricThresholdKey, val, grain);
+
+            // Update card border color
+            card.style.borderLeft = `4px solid ${evalResult.color}`;
+
+            // Update status dot
+            dot.style.backgroundColor = evalResult.color;
+
+            // Update status badge
+            statusBadge.textContent = evalResult.level;
+            statusBadge.className = `risk-badge ${evalResult.badgeClass}`;
+            statusBadge.style.color = evalResult.color;
+
+            // Update value text (baseline-relative index)
+            if (unitSuffix) {
+                valElem.innerHTML = `${val}<span class="metric-unit" style="font-size: 18px; font-weight: 500; color: var(--color-muted); margin-left: 2px;">${unitSuffix}</span>`;
+            } else {
+                valElem.textContent = val;
+            }
+        }
+
+        function renderEmptyCards() {
+            ["temp", "humidity", "gas", "moisture"].forEach(key => {
+                const valElem = document.getElementById(`val-${key}`);
+                if (valElem) valElem.textContent = "-";
+            });
+            document.getElementById("sys-last-reading-time").textContent = "-";
+        }
+
+        function renderLogsTable(readings) {
+            const container = document.getElementById("sensor-logs-container");
+            if (!container) return;
+
+            if (readings.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 40px; border: none;">
+                        <div class="empty-state-icon">${GrainLayout.icons.storage}</div>
+                        <div class="empty-state-title">No sensor readings logged yet</div>
+                        <div class="empty-state-desc">Telemetry data from DHT22, MQ-135, and Capacitive Probe V1.2 will automatically appear here once transmitted.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 650px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--color-border); text-align: left; color: var(--color-muted); background: #F8FAFC;">
+                            <th style="padding: 12px 16px; font-weight: 600;">Time</th>
+                            <th style="padding: 12px 16px; font-weight: 600;">Temp (°C)</th>
+                            <th style="padding: 12px 16px; font-weight: 600;">Humidity (% RH)</th>
+                            <th style="padding: 12px 16px; font-weight: 600;">Gas Index (MQ-135)</th>
+                            <th style="padding: 12px 16px; font-weight: 600;">Moisture (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${readings.map((r, idx) => {
+                            const timeStr = r.timestamp || "Just now";
+                            const tempVal = r.temperature !== undefined ? `${r.temperature}°C` : "N/A";
+                            const humVal = r.humidity !== undefined ? `${r.humidity}%` : "N/A";
+                            const gasVal = r.gas_index !== undefined ? r.gas_index : "N/A";
+                            const moistVal = r.moisture !== undefined ? `${r.moisture}%` : "N/A";
+
+                            return `
+                                <tr style="border-bottom: 1px solid var(--color-border); background: ${idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF'};">
+                                    <td style="padding: 10px 16px; font-weight: 500; color: var(--color-text);">${timeStr}</td>
+                                    <td style="padding: 10px 16px;">${tempVal}</td>
+                                    <td style="padding: 10px 16px;">${humVal}</td>
+                                    <td style="padding: 10px 16px; font-weight: 600;">${gasVal}</td>
+                                    <td style="padding: 10px 16px;">${moistVal}</td>
+                                </tr>
+                            `;
+                        }).join("")}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function generateSimulatedReadings(unitId, count = 20) {
+            const list = [];
+            const now = Date.now();
+            for (let i = 0; i < count; i++) {
+                const d = new Date(now - i * 15000);
+                const timeString = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                list.push({
+                    id: 100 - i,
+                    storage_unit_id: unitId,
+                    timestamp: timeString,
+                    temperature: (24.2 + (i % 3) * 0.2).toFixed(1),
+                    humidity: (58.0 + (i % 4) * 0.4).toFixed(1),
+                    gas_index: 90 + (i % 5) * 5, // NO ppm
+                    moisture: (13.0 + (i % 2) * 0.2).toFixed(1)
+                });
+            }
+            return list;
+        }
+    </script>
+</body>
+</html>

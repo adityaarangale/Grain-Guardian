@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analytics - Grain Guardian</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Unified Theme Tokens & Styles -->
+    <link rel="stylesheet" href="../css/theme.css" />
+    <!-- Chart.js for Trend Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-24);
+        }
+        .analytics-card {
+            height: 380px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .analytics-card.full-width {
+            grid-column: 1 / -1;
+        }
+        .chart-canvas-wrapper {
+            flex: 1;
+            min-height: 250px;
+            position: relative;
+            width: 100%;
+        }
+        .avg-max-chip {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: #F1F5F9;
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        @media (max-width: 900px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+            .analytics-card.full-width {
+                grid-column: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main id="page-content">
+        <div class="grid-12">
+            <!-- Filter & Range Selector Bar (Col-12) -->
+            <div class="col-12">
+                <div class="theme-card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 22px; height: 22px; color: var(--color-brand-green); display: flex;" id="analytics-header-icon"></span>
+                            <h2 style="font-size: 20px; font-weight: 700; color: var(--color-text);" id="analytics-heading">Historical Trends</h2>
+                        </div>
+                        <p style="font-size: 14px; color: var(--color-muted); margin-top: 4px;">Longitudinal microclimate curves and environmental risk trends.</p>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <!-- Requirement 3: Range select: Last 24 hours, 7 days, 30 days -->
+                        <div class="select-group">
+                            <label for="date-range-select" class="select-label">Range</label>
+                            <div class="select-container" style="min-width: 160px;">
+                                <select id="date-range-select" class="theme-select" onchange="loadAnalyticsData()">
+                                    <option value="24h">Last 24 hours</option>
+                                    <option value="7d" selected>Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                </select>
+                                <div class="select-chevron" id="range-chevron"></div>
+                            </div>
+                        </div>
+
+                        <!-- Requirement 4: Export button downloads a real CSV -->
+                        <button type="button" class="btn-outline btn-sm" id="btn-export-csv" onclick="exportData()" title="Download Historical CSV Telemetry Logs">
+                            <span style="width: 16px; height: 16px; display: flex;" id="export-icon-slot"></span>
+                            <span>Export CSV</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requirement 5: Empty state container when there is no data -->
+            <div class="col-12" id="analytics-empty-state" style="display: none;">
+                <div class="theme-card" style="padding: 60px 24px; text-align: center;">
+                    <div style="width: 48px; height: 48px; color: var(--color-muted); margin: 0 auto 16px;" id="empty-analytics-icon"></div>
+                    <div style="font-size: 18px; font-weight: 700; color: var(--color-text); margin-bottom: 6px;" id="empty-state-title">
+                        No telemetry data available
+                    </div>
+                    <p style="font-size: 14px; color: var(--color-muted); max-width: 440px; margin: 0 auto 20px; line-height: 1.5;" id="empty-state-desc">
+                        No sensor readings have been recorded for this storage unit within the selected time range. Post sensor telemetry to populate historical curves.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Charts Container: 2-column grid with equal card heights (Col-12 container) -->
+            <div class="col-12" id="analytics-charts-section">
+                <div class="analytics-grid">
+                    <!-- 1. Temperature History (DHT22) -->
+                    <div class="theme-card analytics-card">
+                        <div class="theme-card-header">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 18px; height: 18px; display: flex;" id="chart-temp-icon"></span>
+                                <span>Temperature History (°C)</span>
+                            </div>
+                            <span class="avg-max-chip" id="temp-stat-chip">Avg: - • Max: -</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="tempChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. Humidity History (DHT22) -->
+                    <div class="theme-card analytics-card">
+                        <div class="theme-card-header">
+                            <div class="theme-card-title">
+                                <span style="color: #0284C7; width: 18px; height: 18px; display: flex;" id="chart-humidity-icon"></span>
+                                <span>Humidity History (% RH)</span>
+                            </div>
+                            <span class="avg-max-chip" id="humidity-stat-chip">Avg: - • Max: -</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="humidityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. Gas Index Trajectory (MQ-135, baseline-relative) -->
+                    <div class="theme-card analytics-card">
+                        <div class="theme-card-header">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-risk-medium); width: 18px; height: 18px; display: flex;" id="chart-gas-icon"></span>
+                                <span>Gas Index (MQ-135)</span>
+                            </div>
+                            <span class="avg-max-chip" id="gas-stat-chip">Avg: - • Max: -</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="gasChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 4. Grain Moisture History (%) -->
+                    <div class="theme-card analytics-card">
+                        <div class="theme-card-header">
+                            <div class="theme-card-title">
+                                <span style="color: #059669; width: 18px; height: 18px; display: flex;" id="chart-moist-icon"></span>
+                                <span>Grain Moisture (%)</span>
+                            </div>
+                            <span class="avg-max-chip" id="moist-stat-chip">Avg: - • Max: -</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="moistChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 5. Overall Risk Chart (Equal Card Height, spanning 2 columns) -->
+                    <div class="theme-card analytics-card full-width">
+                        <div class="theme-card-header">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-risk-critical); width: 18px; height: 18px; display: flex;" id="chart-risk-icon"></span>
+                                <span>Overall Spoilage Risk Trajectory (%)</span>
+                            </div>
+                            <span class="avg-max-chip" id="risk-stat-chip">Avg: - • Max: -</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="riskChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="../js/state.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        let charts = {};
+        let activeTelemetryPoints = [];
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Initialize Unified Layout (Sidebar & Topbar)
+            await GrainLayout.init({
+                title: "Analytics",
+                subtitle: "Historical trends",
+                activeNav: "analytics"
+            });
+
+            // Set Icons using inline SVG
+            document.getElementById("analytics-header-icon").innerHTML = GrainLayout.icons.analytics;
+            document.getElementById("range-chevron").innerHTML = GrainLayout.icons.chevronDown;
+            document.getElementById("export-icon-slot").innerHTML = GrainLayout.icons.upload;
+            document.getElementById("empty-analytics-icon").innerHTML = GrainLayout.icons.analytics;
+
+            document.getElementById("chart-temp-icon").innerHTML = GrainLayout.icons.temp;
+            document.getElementById("chart-humidity-icon").innerHTML = GrainLayout.icons.humidity;
+            document.getElementById("chart-gas-icon").innerHTML = GrainLayout.icons.gas;
+            document.getElementById("chart-moist-icon").innerHTML = GrainLayout.icons.moisture;
+            document.getElementById("chart-risk-icon").innerHTML = GrainLayout.icons.critical;
+
+            // Initial load of analytics data
+            await loadAnalyticsData();
+
+            // Re-render when global unit or grain changes
+            GrainState.onStateChange(() => {
+                loadAnalyticsData();
+            });
+        });
+
+        // Compute Avg and Max from an array of numbers
+        function computeStats(arr) {
+            if (!arr || arr.length === 0) return { avg: "-", max: "-" };
+            const valid = arr.filter(v => v !== null && v !== undefined && !isNaN(v));
+            if (valid.length === 0) return { avg: "-", max: "-" };
+            const sum = valid.reduce((acc, curr) => acc + curr, 0);
+            const avg = (sum / valid.length).toFixed(1);
+            const max = Math.max(...valid).toFixed(1);
+            return { avg, max };
+        }
+
+        async function loadAnalyticsData() {
+            const unitId = GrainState.getSelectedUnitId();
+            const grain = GrainState.getSelectedGrain();
+            const range = document.getElementById("date-range-select").value || "7d";
+            const heading = document.getElementById("analytics-heading");
+            const emptyContainer = document.getElementById("analytics-empty-state");
+            const chartsContainer = document.getElementById("analytics-charts-section");
+            const exportBtn = document.getElementById("btn-export-csv");
+
+            if (heading) {
+                heading.innerText = unitId 
+                    ? `Historical Trends for Unit #${unitId} (${grain})` 
+                    : `Facility Telemetry Overview (${grain})`;
+            }
+
+            if (!unitId) {
+                renderEmptyState("No storage unit selected", "Please select an active storage unit from the top bar to view telemetry trends.");
+                return;
+            }
+
+            let dataPoints = [];
+            try {
+                if (typeof fetchAnalyticsSeries === "function") {
+                    const res = await fetchAnalyticsSeries(unitId, range);
+                    if (res && Array.isArray(res.data_points)) {
+                        dataPoints = res.data_points;
+                    }
+                }
+            } catch (err) {
+                console.warn("Error fetching analytics series:", err);
+            }
+
+            activeTelemetryPoints = dataPoints;
+
+            // Requirement 5: Empty state when there is no data. No hardcoded series.
+            if (!dataPoints || dataPoints.length === 0) {
+                renderEmptyState(
+                    `No telemetry data for Unit #${unitId}`,
+                    `No sensor readings have been recorded for Unit #${unitId} (${grain}) within the ${getRangeLabel(range)} window.`
+                );
+                if (exportBtn) exportBtn.disabled = true;
+                return;
+            }
+
+            if (emptyContainer) emptyContainer.style.display = "none";
+            if (chartsContainer) chartsContainer.style.display = "block";
+            if (exportBtn) exportBtn.disabled = false;
+
+            // Extract real series data from API response
+            const labels = dataPoints.map(p => p.label || p.timestamp);
+            const tempData = dataPoints.map(p => p.temperature);
+            const humData = dataPoints.map(p => p.humidity);
+            const gasData = dataPoints.map(p => p.gas_index);
+            const moistData = dataPoints.map(p => p.moisture);
+            const riskData = dataPoints.map(p => p.risk);
+
+            // Requirement 2: Compute Avg/Max chips dynamically from real data
+            const tStats = computeStats(tempData);
+            const hStats = computeStats(humData);
+            const gStats = computeStats(gasData);
+            const mStats = computeStats(moistData);
+            const rStats = computeStats(riskData);
+
+            document.getElementById("temp-stat-chip").textContent = `Avg: ${tStats.avg}°C • Max: ${tStats.max}°C`;
+            document.getElementById("humidity-stat-chip").textContent = `Avg: ${hStats.avg}% • Max: ${hStats.max}%`;
+            document.getElementById("gas-stat-chip").textContent = `Avg: ${gStats.avg} • Max: ${gStats.max}`;
+            document.getElementById("moist-stat-chip").textContent = `Avg: ${mStats.avg}% • Max: ${mStats.max}%`;
+            document.getElementById("risk-stat-chip").textContent = `Avg: ${rStats.avg}% • Max: ${rStats.max}%`;
+
+            // Requirement 2: Build Chart.js charts with axis titles with units, readable ticks, and tooltips
+            renderChart("tempChart", labels, "Temperature (°C)", tempData, "#0B3D2E", "rgba(11, 61, 46, 0.08)", "°C", 0, 45);
+            renderChart("humidityChart", labels, "Relative Humidity (% RH)", humData, "#0284C7", "rgba(2, 132, 199, 0.08)", "% RH", 0, 100);
+            renderChart("gasChart", labels, "Gas Index (MQ-135)", gasData, "#D97706", "rgba(217, 119, 6, 0.08)", "", 0, 300);
+            renderChart("moistChart", labels, "Grain Moisture (%)", moistData, "#059669", "rgba(5, 150, 105, 0.08)", "%", 0, 25);
+            renderChart("riskChart", labels, "Spoilage Risk (%)", riskData, "#DC2626", "rgba(220, 38, 38, 0.08)", "%", 0, 100);
+        }
+
+        function renderEmptyState(title, desc) {
+            const emptyContainer = document.getElementById("analytics-empty-state");
+            const chartsContainer = document.getElementById("analytics-charts-section");
+            const titleElem = document.getElementById("empty-state-title");
+            const descElem = document.getElementById("empty-state-desc");
+
+            if (titleElem) titleElem.textContent = title;
+            if (descElem) descElem.textContent = desc;
+
+            if (emptyContainer) emptyContainer.style.display = "block";
+            if (chartsContainer) chartsContainer.style.display = "none";
+
+            // Reset chips
+            ["temp", "humidity", "gas", "moist", "risk"].forEach(k => {
+                const chip = document.getElementById(`${k}-stat-chip`);
+                if (chip) chip.textContent = "Avg: - • Max: -";
+            });
+        }
+
+        function renderChart(canvasId, labels, yAxisTitle, dataSeries, strokeColor, fillColor, unitSuffix, suggestedMin, suggestedMax) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            const chartConfig = {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: yAxisTitle,
+                        data: dataSeries,
+                        borderColor: strokeColor,
+                        backgroundColor: fillColor,
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2.2,
+                        pointRadius: labels.length > 30 ? 1.5 : 3.5,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: strokeColor,
+                        pointBorderColor: "#FFFFFF",
+                        pointBorderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: "#0F172A",
+                            titleFont: { family: "Inter", size: 13, weight: "600" },
+                            bodyFont: { family: "Inter", size: 12 },
+                            padding: 10,
+                            cornerRadius: 6,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${yAxisTitle}: ${context.parsed.y}${unitSuffix ? ' ' + unitSuffix : ''}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Timeline",
+                                color: "#64748B",
+                                font: { family: "Inter", size: 11, weight: "600" }
+                            },
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: "Inter", size: 10 },
+                                color: "#64748B",
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: yAxisTitle,
+                                color: "#64748B",
+                                font: { family: "Inter", size: 11, weight: "600" }
+                            },
+                            suggestedMin: suggestedMin,
+                            suggestedMax: suggestedMax,
+                            grid: { color: "#E2E8F0", drawBorder: false },
+                            ticks: {
+                                font: { family: "Inter", size: 10 },
+                                color: "#64748B",
+                                maxTicksLimit: 6
+                            }
+                        }
+                    }
+                }
+            };
+
+            if (charts[canvasId]) {
+                charts[canvasId].data.labels = labels;
+                charts[canvasId].data.datasets[0].data = dataSeries;
+                charts[canvasId].options.scales.y.title.text = yAxisTitle;
+                charts[canvasId].update();
+            } else {
+                charts[canvasId] = new Chart(ctx.getContext("2d"), chartConfig);
+            }
+        }
+
+        function getRangeLabel(val) {
+            if (val === "24h") return "last 24 hours";
+            if (val === "30d") return "last 30 days";
+            return "last 7 days";
+        }
+
+        // Requirement 4: Export button downloads a real CSV of the selected unit and range
+        function exportData() {
+            const grain = GrainState.getSelectedGrain();
+            const unitId = GrainState.getSelectedUnitId() || 1;
+            const range = document.getElementById("date-range-select").value || "7d";
+
+            if (!activeTelemetryPoints || activeTelemetryPoints.length === 0) {
+                alert("No telemetry data available to export for this unit.");
+                return;
+            }
+
+            // Compose real CSV with dynamic sensor fields
+            let csvContent = "Timestamp,Storage Unit ID,Grain,Temperature (°C),Humidity (% RH),Gas Index (MQ-135),Grain Moisture (%),Spoilage Risk (%)\n";
+
+            activeTelemetryPoints.forEach(p => {
+                const ts = p.timestamp || "";
+                const t = p.temperature !== undefined ? p.temperature : "";
+                const h = p.humidity !== undefined ? p.humidity : "";
+                const g = p.gas_index !== undefined ? p.gas_index : "";
+                const m = p.moisture !== undefined ? p.moisture : "";
+                const r = p.risk !== undefined ? p.risk : "";
+                csvContent += `"${ts}",${unitId},"${grain}",${t},${h},${g},${m},${r}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `GrainGuardian_Telemetry_${grain}_Unit${unitId}_${range}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+import os
+
+# Secret key for signing JWT tokens.
+# Change this in production or set JWT_SECRET_KEY environment variable.
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "grain-guardian-hackathon-super-secret-jwt-key-2026")

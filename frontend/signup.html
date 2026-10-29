@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Grain Guardian - Sign Up</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "secondary": "#765a05",
+                        "on-background": "#191c1d",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed": "#002114",
+                        "primary-fixed": "#c1ecd4",
+                        "tertiary": "#002d1c",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed": "#ffdf96",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5a4400",
+                        "surface-bright": "#f8f9fa",
+                        "surface": "#f8f9fa",
+                        "background": "#f8f9fa",
+                        "tertiary-fixed-dim": "#95d4b3",
+                        "on-tertiary-fixed": "#002114",
+                        "tertiary-fixed": "#b1f0ce",
+                        "primary-fixed-dim": "#a5d0b9",
+                        "inverse-on-surface": "#f0f1f2",
+                        "surface-tint": "#3f6653",
+                        "on-primary-container": "#86af99",
+                        "on-tertiary-container": "#75b393",
+                        "on-surface-variant": "#414844",
+                        "on-primary-fixed-variant": "#274e3d",
+                        "surface-container-high": "#e7e8e9",
+                        "on-tertiary-fixed-variant": "#0e5138",
+                        "surface-container-highest": "#e1e3e4",
+                        "on-surface": "#191c1d",
+                        "secondary-fixed-dim": "#e7c268",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#012d1d",
+                        "primary-container": "#1b4332",
+                        "outline": "#717973",
+                        "tertiary-container": "#00452e",
+                        "secondary-container": "#ffd87c",
+                        "surface-dim": "#d9dadb",
+                        "surface-container": "#edeeef",
+                        "on-error-container": "#93000a",
+                        "inverse-surface": "#2e3132",
+                        "inverse-primary": "#a5d0b9",
+                        "on-secondary-container": "#795d08",
+                        "surface-container-low": "#f3f4f5",
+                        "on-secondary-fixed": "#251a00",
+                        "surface-variant": "#e1e3e4",
+                        "outline-variant": "#c1c8c2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "12px",
+                        "xl": "64px",
+                        "lg": "40px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "margin-desktop": "32px",
+                        "md": "24px",
+                        "xs": "4px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "data-mono": ["monospace"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "title-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "data-mono": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "title-lg": ["20px", { "lineHeight": "28px", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-surface text-on-surface min-h-screen flex flex-col antialiased">
+    <!-- Main Content Canvas - Full Screen for Sign Up -->
+    <main class="flex-grow flex items-center justify-center p-margin-mobile md:p-margin-desktop py-lg">
+        <div class="w-full max-w-md">
+            <!-- Brand Header -->
+            <div class="text-center mb-lg">
+                <div class="flex justify-center mb-xs">
+                    <svg class="text-primary w-16 h-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v20M7 7l5-5 5 5M4 14l8-8 8 8M2 20l10-10 10 10"/>
+                    </svg>
+                </div>
+                <h1 class="font-display-lg text-display-lg text-primary">Grain Guardian</h1>
+                <p class="font-body-lg text-body-lg text-on-surface-variant mt-xs">Create Storage Manager Account</p>
+            </div>
+
+            <!-- Error / Success Alert Box -->
+            <div id="signupAlert" class="hidden mb-md p-sm rounded-lg text-body-md font-medium"></div>
+
+            <!-- Sign Up Card -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md md:p-lg">
+                <form id="signupForm" onsubmit="handleSignup(event)" class="space-y-sm">
+                    <div>
+                        <label class="block font-label-md text-label-md text-on-surface mb-xs" for="name">Full Name</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                </svg>
+                            </div>
+                            <input class="block w-full pl-10 sm:text-sm border-outline-variant rounded-DEFAULT focus:ring-primary focus:border-primary font-body-md text-body-md bg-surface-container-lowest text-on-surface py-sm"
+                                id="name" name="name" placeholder="John Doe" required type="text" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-label-md text-label-md text-on-surface mb-xs" for="email">Email Address</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                                </svg>
+                            </div>
+                            <input class="block w-full pl-10 sm:text-sm border-outline-variant rounded-DEFAULT focus:ring-primary focus:border-primary font-body-md text-body-md bg-surface-container-lowest text-on-surface py-sm"
+                                id="email" name="email" placeholder="operator@facility.com" required type="email" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-label-md text-label-md text-on-surface mb-xs" for="password">Password</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                            <input class="block w-full pl-10 sm:text-sm border-outline-variant rounded-DEFAULT focus:ring-primary focus:border-primary font-body-md text-body-md bg-surface-container-lowest text-on-surface py-sm"
+                                id="password" name="password" placeholder="••••••••" required type="password" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-label-md text-label-md text-on-surface mb-xs" for="confirmPassword">Confirm Password</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                                </svg>
+                            </div>
+                            <input class="block w-full pl-10 sm:text-sm border-outline-variant rounded-DEFAULT focus:ring-primary focus:border-primary font-body-md text-body-md bg-surface-container-lowest text-on-surface py-sm"
+                                id="confirmPassword" name="confirmPassword" placeholder="••••••••" required type="password" />
+                        </div>
+                    </div>
+
+                    <div class="pt-md">
+                        <button id="signupBtn" class="w-full flex justify-center py-sm px-4 border border-transparent rounded-DEFAULT shadow-sm font-label-md text-label-md text-on-primary bg-primary-container hover:bg-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+                            type="submit">
+                            Sign Up
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Login Link -->
+            <div class="mt-lg text-center">
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Already have an account?
+                    <a class="font-label-md text-label-md text-primary hover:text-primary-container ml-1" href="index.html">Login</a>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function handleSignup(event) {
+            event.preventDefault();
+            const alertBox = document.getElementById("signupAlert");
+            const btn = document.getElementById("signupBtn");
+
+            alertBox.classList.add("hidden");
+            
+            const name = document.getElementById("name").value.trim();
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+
+            if (password !== confirmPassword) {
+                alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-error-container text-on-error-container border border-error";
+                alertBox.innerText = "Passwords do not match. Please verify and try again.";
+                alertBox.classList.remove("hidden");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Creating Account...";
+
+            const res = await signupUser(name, email, password);
+
+            btn.disabled = false;
+            btn.innerText = "Sign Up";
+
+            if (res.ok) {
+                // Redirect to login page with success notice
+                window.location.href = "index.html?registered=true";
+            } else {
+                const errMsg = res.data ? res.data.message : "Signup failed. Please try again.";
+                alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-error-container text-on-error-container border border-error";
+                alertBox.innerText = errMsg;
+                alertBox.classList.remove("hidden");
+            }
+        }
+    </script>
+</body>
+
+</html>

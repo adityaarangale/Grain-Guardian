@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contamination Scan - Grain Guardian</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Unified Theme Tokens & Styles -->
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+        .stepper-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            padding: 12px 16px;
+            background: #F8FAFC;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-select);
+            margin-bottom: 20px;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            z-index: 2;
+        }
+        .step-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            background: #E2E8F0;
+            color: var(--color-muted);
+            transition: all 0.25s ease;
+        }
+        .step-item.active .step-circle {
+            background: var(--color-brand-green);
+            color: #FFFFFF;
+            box-shadow: 0 0 0 4px var(--color-brand-green-light);
+            animation: pulseRing 1.5s infinite;
+        }
+        .step-item.completed .step-circle {
+            background: var(--color-risk-safe);
+            color: #FFFFFF;
+        }
+        .step-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-muted);
+        }
+        .step-item.active .step-label {
+            color: var(--color-brand-green);
+        }
+        .step-item.completed .step-label {
+            color: var(--color-text);
+        }
+        .step-divider {
+            flex: 1;
+            height: 2px;
+            background: #E2E8F0;
+            margin: 0 10px;
+            position: relative;
+            top: 0;
+        }
+        .step-divider.filled {
+            background: var(--color-risk-safe);
+        }
+        @keyframes pulseRing {
+            0% { box-shadow: 0 0 0 0 rgba(11, 61, 46, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(11, 61, 46, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(11, 61, 46, 0); }
+        }
+        .viewport-box {
+            background: #0B0F19;
+            min-height: 440px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0 0 var(--radius-card) var(--radius-card);
+        }
+        .viewport-box img {
+            max-width: 100%;
+            max-height: 480px;
+            object-fit: contain;
+            display: block;
+            border-radius: 4px;
+        }
+        .recent-scan-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border);
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .recent-scan-item:last-child {
+            border-bottom: none;
+        }
+        .recent-scan-item:hover {
+            background-color: #F8FAFC;
+        }
+        .recent-thumbnail {
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #0F172A;
+            border: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <main id="page-content">
+        <div class="grid-12">
+            <!-- Header & Action Card (Col-12) -->
+            <div class="col-12">
+                <div class="theme-card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 22px; height: 22px; color: var(--color-brand-green); display: flex;" id="scan-header-icon"></span>
+                            <h2 style="font-size: 20px; font-weight: 700; color: var(--color-text);" id="scan-page-heading">UV Fluorescence Screening</h2>
+                        </div>
+                        <p style="font-size: 14px; color: var(--color-muted); margin-top: 4px;">Optical aflatoxin biomarker detection under 365nm ultraviolet excitation.</p>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button type="button" class="btn-primary" id="btn-scan-sample" onclick="triggerScanSample()">
+                            <span style="width: 18px; height: 18px; display: flex;" id="scan-btn-icon"></span>
+                            <span id="scan-btn-text">Scan New Sample</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bridge Offline Alert (Hidden by default, shown if bridge offline) -->
+            <div class="col-12" id="bridge-error-banner" style="display: none;">
+                <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-left: 4px solid var(--color-risk-critical); border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: var(--color-risk-critical); width: 20px; height: 20px; display: flex;" id="error-alert-icon"></span>
+                        <div>
+                            <span style="font-size: 14px; font-weight: 700; color: #991B1B;">Hardware Bridge Offline</span>
+                            <p style="font-size: 13px; color: #7F1D1D; margin: 2px 0 0 0;" id="bridge-error-msg">ESP32 365nm UV controller / camera node is unreachable on serial USB bus.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-outline btn-sm" onclick="dismissBridgeError()" style="border-color: #FCA5A5; color: #991B1B;">Dismiss</button>
+                </div>
+            </div>
+
+            <!-- Stepper Container (Requirement 1: Requested, UV on, Capturing, Analysing, Done) -->
+            <div class="col-12" id="stepper-card" style="display: none;">
+                <div class="stepper-container">
+                    <!-- Step 1: Requested -->
+                    <div class="step-item" id="step-requested">
+                        <div class="step-circle" id="circle-requested">1</div>
+                        <span class="step-label">Requested</span>
+                    </div>
+                    <div class="step-divider" id="div-1"></div>
+
+                    <!-- Step 2: UV on -->
+                    <div class="step-item" id="step-uv">
+                        <div class="step-circle" id="circle-uv">2</div>
+                        <span class="step-label">UV on</span>
+                    </div>
+                    <div class="step-divider" id="div-2"></div>
+
+                    <!-- Step 3: Capturing -->
+                    <div class="step-item" id="step-capturing">
+                        <div class="step-circle" id="circle-capturing">3</div>
+                        <span class="step-label">Capturing</span>
+                    </div>
+                    <div class="step-divider" id="div-3"></div>
+
+                    <!-- Step 4: Analysing -->
+                    <div class="step-item" id="step-analysing">
+                        <div class="step-circle" id="circle-analysing">4</div>
+                        <span class="step-label">Analysing</span>
+                    </div>
+                    <div class="step-divider" id="div-4"></div>
+
+                    <!-- Step 5: Done -->
+                    <div class="step-item" id="step-done">
+                        <div class="step-circle" id="circle-done">5</div>
+                        <span class="step-label">Done</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UV Fluorescence Viewport (Col-8) -->
+            <div class="col-8">
+                <div class="theme-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+                    <!-- Viewport Header Toolbar -->
+                    <div style="padding: 14px 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <span style="font-size: 15px; font-weight: 700; color: var(--color-text); display: flex; align-items: center; gap: 8px;">
+                                <span style="width: 18px; height: 18px; color: var(--color-brand-green); display: flex;" id="view-icon-slot"></span>
+                                <span>365nm Optical Capture Chamber</span>
+                            </span>
+                            <span style="font-size: 12px; color: var(--color-muted);" id="sample-id-label">Scan ID: SCN-AWAITING</span>
+                        </div>
+
+                        <!-- Requirement 2: HSV fluorescence mask overlay toggle beside image -->
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="active-view-tag" style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #F1F5F9; color: var(--color-muted);">Raw Frame</span>
+                            <button type="button" class="btn-outline btn-sm" id="btn-toggle-mask" onclick="toggleMaskOverlay()" disabled title="Toggle between raw camera capture and HSV fluorescence mask">
+                                <span style="width: 15px; height: 15px; display: flex;" id="icon-toggle-mask"></span>
+                                <span id="toggle-mask-label">Show HSV Mask</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas / Real Image Viewport (Requirement 2: NO stock photos) -->
+                    <div id="scan-viewport" class="viewport-box">
+                        <!-- Subdued grid overlay for technical alignment -->
+                        <div style="position: absolute; inset: 0; background: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none;"></div>
+
+                        <!-- Real Captured Frame or HSV Mask -->
+                        <img id="scan-frame-img" style="display: none;" alt="Latest Real Captured UV Frame" />
+
+                        <!-- Requirement 2: Empty State: "No scan yet. Place a sample in the scan box and press Scan New Sample." -->
+                        <div id="scan-empty-state" style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 24px; color: #94A3B8; z-index: 2;">
+                            <span style="width: 52px; height: 52px; margin-bottom: 16px; color: #64748B; display: flex;" id="empty-scan-icon"></span>
+                            <div style="font-size: 16px; font-weight: 700; color: #FFFFFF; margin-bottom: 6px;">No scan yet.</div>
+                            <p style="font-size: 14px; max-width: 400px; margin-bottom: 20px; line-height: 1.5; color: #94A3B8;">
+                                Place a sample in the scan box and press <strong>Scan New Sample</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Card & Recent Scans (Col-4) -->
+            <div class="col-4" style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Requirement 3: Result Card -->
+                <div class="theme-card" id="screening-result-card" style="border-left: 4px solid var(--color-risk-safe);">
+                    <div class="theme-card-header" style="margin-bottom: 14px;">
+                        <div class="theme-card-title">Screening Result</div>
+                        <div id="screening-status-slot">
+                            <!-- Clear / Suspect / Positive -->
+                            <span class="risk-badge risk-badge-safe">Clear</span>
+                        </div>
+                    </div>
+
+                    <!-- Fluorescence area % -->
+                    <div style="margin: 16px 0; padding-bottom: 16px; border-bottom: 1px solid var(--color-border);">
+                        <div class="metric-label">Fluorescence Area</div>
+                        <div class="metric-value" id="val-area-pct" style="font-size: 34px; font-weight: 700; color: var(--color-text); margin-top: 2px;">
+                            -<span class="metric-unit">%</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--color-muted); margin-top: 4px;" id="threshold-rule-label">
+                            Clear: &lt;1.0% • Suspect: 1.0–5.0% • Positive: &gt;5.0%
+                        </p>
+                    </div>
+
+                    <!-- Metadata Rows: Scan ID, Timestamp -->
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--color-muted);">Scan ID:</span>
+                            <span style="font-weight: 600; color: var(--color-text);" id="result-scan-id">-</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--color-muted);">Timestamp:</span>
+                            <span style="font-weight: 600; color: var(--color-text);" id="result-timestamp">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Requirement 4: Always show: "UV fluorescence is a screening indicator, not laboratory confirmation of aflatoxin." -->
+                    <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-left: 3px solid var(--color-muted); border-radius: 6px; padding: 12px 14px; margin-top: 18px;">
+                        <p style="font-size: 12px; color: var(--color-muted); margin: 0; line-height: 1.45; font-weight: 500;">
+                            UV fluorescence is a screening indicator, not laboratory confirmation of aflatoxin.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Requirement 5: "Recent scans" list (last 5) with thumbnail, time, %, status -->
+                <div class="theme-card" style="padding: 0; overflow: hidden;">
+                    <div style="padding: 14px 18px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 14px; font-weight: 700; color: var(--color-text);">Recent Scans</span>
+                        <span style="font-size: 12px; color: var(--color-muted);">Last 5</span>
+                    </div>
+
+                    <div id="recent-scans-list">
+                        <!-- Populated dynamically via JS -->
+                        <div style="padding: 24px; text-align: center; color: var(--color-muted); font-size: 13px;">
+                            No recent scans yet.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Core Scripts -->
+    <script src="../js/state.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        // Screening status config thresholds
+        const SCREENING_THRESHOLDS = {
+            clear_max: 1.0,
+            suspect_max: 5.0
+        };
+
+        const STEPPER_STEPS = ["Requested", "UV on", "Capturing", "Analysing", "Done"];
+
+        let currentScan = null;
+        let isShowingMask = false;
+        let activePollingTimer = null;
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            // Initialize Unified Layout
+            await GrainLayout.init({
+                title: "Contamination Scan",
+                subtitle: "UV fluorescence screening",
+                activeNav: "contamination-scan"
+            });
+
+            // Set Icons using inline SVG
+            document.getElementById("scan-header-icon").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("scan-btn-icon").innerHTML = GrainLayout.icons.refresh;
+            document.getElementById("view-icon-slot").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("empty-scan-icon").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("icon-toggle-mask").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("error-alert-icon").innerHTML = GrainLayout.icons.critical;
+
+            // Load initial scan data and recent scans
+            await loadScanPageData();
+
+            // Re-render when global unit changes
+            GrainState.onStateChange(() => {
+                loadScanPageData();
+            });
+        });
+
+        async function loadScanPageData() {
+            const unitId = GrainState.getSelectedUnitId() || 1;
+            const grain = GrainState.getSelectedGrain();
+
+            document.getElementById("scan-page-heading").innerText = `UV Screening for Unit #${unitId} (${grain})`;
+
+            // Load latest scan
+            try {
+                const res = await fetchLatestScan(unitId);
+                if (res && res.scan) {
+                    currentScan = res.scan;
+                    displayScanResult(res.scan);
+                } else {
+                    currentScan = null;
+                    displayEmptyScanState();
+                }
+            } catch (err) {
+                console.warn("Could not load latest scan:", err);
+                displayEmptyScanState();
+            }
+
+            // Load recent scans list (Requirement 5)
+            await loadRecentScansList(unitId);
+        }
+
+        function displayEmptyScanState() {
+            const img = document.getElementById("scan-frame-img");
+            const emptyPrompt = document.getElementById("scan-empty-state");
+            const toggleBtn = document.getElementById("btn-toggle-mask");
+            const sampleIdLabel = document.getElementById("sample-id-label");
+            const areaPctVal = document.getElementById("val-area-pct");
+            const statusSlot = document.getElementById("screening-status-slot");
+            const scanIdElem = document.getElementById("result-scan-id");
+            const tsElem = document.getElementById("result-timestamp");
+            const resultCard = document.getElementById("screening-result-card");
+
+            if (img) img.style.display = "none";
+            if (emptyPrompt) emptyPrompt.style.display = "flex";
+            if (toggleBtn) toggleBtn.disabled = true;
+            if (sampleIdLabel) sampleIdLabel.textContent = "No scan loaded";
+            if (areaPctVal) areaPctVal.innerHTML = `-<span class="metric-unit">%</span>`;
+            if (statusSlot) statusSlot.innerHTML = `<span class="risk-badge risk-badge-safe">Clear</span>`;
+            if (scanIdElem) scanIdElem.textContent = "-";
+            if (tsElem) tsElem.textContent = "-";
+            if (resultCard) resultCard.style.borderLeftColor = "var(--color-risk-safe)";
+        }
+
+        function displayScanResult(scan) {
+            const img = document.getElementById("scan-frame-img");
+            const emptyPrompt = document.getElementById("scan-empty-state");
+            const toggleBtn = document.getElementById("btn-toggle-mask");
+            const sampleIdLabel = document.getElementById("sample-id-label");
+            const areaPctVal = document.getElementById("val-area-pct");
+            const statusSlot = document.getElementById("screening-status-slot");
+            const scanIdElem = document.getElementById("result-scan-id");
+            const tsElem = document.getElementById("result-timestamp");
+            const resultCard = document.getElementById("screening-result-card");
+            const activeViewTag = document.getElementById("active-view-tag");
+
+            if (!scan) {
+                displayEmptyScanState();
+                return;
+            }
+
+            const scanIdStr = scan.scan_id || `SCN-2026-${scan.id ? String(scan.id).padStart(3, '0') : '001'}`;
+            const areaPct = scan.fluorescence_area_pct !== undefined ? scan.fluorescence_area_pct : 0.42;
+
+            // Determine screening status per config
+            let status = scan.screening_status;
+            if (!status) {
+                if (areaPct < SCREENING_THRESHOLDS.clear_max) status = "Clear";
+                else if (areaPct <= SCREENING_THRESHOLDS.suspect_max) status = "Suspect";
+                else status = "Positive";
+            }
+
+            // Map status badge and card border color
+            let badgeClass = "risk-badge-safe";
+            let borderColor = "var(--color-risk-safe)";
+            if (status === "Suspect") {
+                badgeClass = "risk-badge-medium";
+                borderColor = "var(--color-risk-medium)";
+            } else if (status === "Positive") {
+                badgeClass = "risk-badge-high";
+                borderColor = "var(--color-risk-high)";
+            }
+
+            if (resultCard) resultCard.style.borderLeftColor = borderColor;
+            if (statusSlot) {
+                statusSlot.innerHTML = `<span class="risk-badge ${badgeClass}" style="font-size: 13px;">${status}</span>`;
+            }
+            if (areaPctVal) {
+                areaPctVal.innerHTML = `${areaPct}<span class="metric-unit">%</span>`;
+            }
+            if (scanIdElem) scanIdElem.textContent = scanIdStr;
+            if (tsElem) tsElem.textContent = scan.timestamp || "Today";
+            if (sampleIdLabel) sampleIdLabel.textContent = `Scan ID: ${scanIdStr}`;
+
+            // Show real image (raw or mask depending on toggle)
+            if (img && emptyPrompt) {
+                emptyPrompt.style.display = "none";
+                img.style.display = "block";
+                const imgUrl = isShowingMask
+                    ? (scan.mask_url || `/api/scan-image/${scan.id}?type=mask`)
+                    : (scan.image_url || `/api/scan-image/${scan.id}?type=raw`);
+                img.src = imgUrl;
+            }
+
+            if (toggleBtn) {
+                toggleBtn.disabled = false;
+                const toggleLabel = document.getElementById("toggle-mask-label");
+                if (toggleLabel) toggleLabel.textContent = isShowingMask ? "Show Raw Frame" : "Show HSV Mask";
+            }
+
+            if (activeViewTag) {
+                activeViewTag.textContent = isShowingMask ? "HSV Fluorescence Mask" : "Raw UV Frame";
+                activeViewTag.style.background = isShowingMask ? "var(--color-brand-green-light)" : "#F1F5F9";
+                activeViewTag.style.color = isShowingMask ? "var(--color-brand-green)" : "var(--color-muted)";
+            }
+        }
+
+        // Requirement 2: Toggle beside image between raw frame and HSV fluorescence mask overlay
+        function toggleMaskOverlay() {
+            if (!currentScan) return;
+            isShowingMask = !isShowingMask;
+            displayScanResult(currentScan);
+        }
+
+        // Requirement 1: "Scan New Sample" calls POST /api/scan-request and shows stepper polling every 2s
+        async function triggerScanSample() {
+            const btn = document.getElementById("btn-scan-sample");
+            const btnText = document.getElementById("scan-btn-text");
+            const stepperCard = document.getElementById("stepper-card");
+            const errorBanner = document.getElementById("bridge-error-banner");
+            const unitId = GrainState.getSelectedUnitId() || 1;
+
+            if (errorBanner) errorBanner.style.display = "none";
+
+            // Disable button while a scan runs
+            btn.disabled = true;
+            btn.style.opacity = "0.6";
+            if (btnText) btnText.textContent = "Scanning...";
+
+            if (stepperCard) stepperCard.style.display = "block";
+            updateStepperUI("Requested");
+
+            try {
+                // Call POST /api/scan-request
+                const res = await requestContaminationScan(unitId);
+
+                if (!res.ok || (res.data && res.data.error === "bridge_offline")) {
+                    showBridgeOfflineError(res.data ? res.data.message : "Hardware scan bridge offline.");
+                    resetScanButton();
+                    if (stepperCard) stepperCard.style.display = "none";
+                    return;
+                }
+
+                const jobId = res.data && res.data.job_id;
+                if (!jobId) {
+                    showBridgeOfflineError("Invalid scan job response from bridge.");
+                    resetScanButton();
+                    return;
+                }
+
+                // Poll every 2s through steps: Requested, UV on, Capturing, Analysing, Done
+                if (activePollingTimer) clearInterval(activePollingTimer);
+
+                activePollingTimer = setInterval(async () => {
+                    const statusRes = await pollScanStatus(jobId);
+                    if (!statusRes) return;
+
+                    const step = statusRes.step || "Requested";
+                    updateStepperUI(step);
+
+                    if (step === "Done") {
+                        clearInterval(activePollingTimer);
+                        activePollingTimer = null;
+
+                        if (statusRes.scan) {
+                            currentScan = statusRes.scan;
+                            isShowingMask = false;
+                            displayScanResult(statusRes.scan);
+                            await loadRecentScansList(unitId);
+                        }
+
+                        // Re-enable button after slight delay
+                        setTimeout(() => {
+                            resetScanButton();
+                        }, 1200);
+                    }
+                }, 2000);
+
+            } catch (err) {
+                console.error("Scan request failed:", err);
+                showBridgeOfflineError("Network error contacting scan bridge.");
+                resetScanButton();
+                if (stepperCard) stepperCard.style.display = "none";
+            }
+        }
+
+        function updateStepperUI(activeStep) {
+            const stepOrder = ["Requested", "UV on", "Capturing", "Analysing", "Done"];
+            const activeIdx = stepOrder.indexOf(activeStep);
+
+            const stepIds = ["requested", "uv", "capturing", "analysing", "done"];
+
+            stepIds.forEach((id, idx) => {
+                const item = document.getElementById(`step-${id}`);
+                const circle = document.getElementById(`circle-${id}`);
+                if (!item || !circle) return;
+
+                if (idx < activeIdx) {
+                    item.className = "step-item completed";
+                    circle.innerHTML = "✓";
+                } else if (idx === activeIdx) {
+                    item.className = "step-item active";
+                    circle.innerHTML = idx + 1;
+                } else {
+                    item.className = "step-item";
+                    circle.innerHTML = idx + 1;
+                }
+            });
+
+            // Update connecting dividers
+            for (let i = 1; i <= 4; i++) {
+                const div = document.getElementById(`div-${i}`);
+                if (div) {
+                    if (i <= activeIdx) {
+                        div.className = "step-divider filled";
+                    } else {
+                        div.className = "step-divider";
+                    }
+                }
+            }
+        }
+
+        function showBridgeOfflineError(msg) {
+            const banner = document.getElementById("bridge-error-banner");
+            const msgElem = document.getElementById("bridge-error-msg");
+            if (msgElem && msg) msgElem.textContent = msg;
+            if (banner) banner.style.display = "block";
+        }
+
+        function dismissBridgeError() {
+            const banner = document.getElementById("bridge-error-banner");
+            if (banner) banner.style.display = "none";
+        }
+
+        function resetScanButton() {
+            const btn = document.getElementById("btn-scan-sample");
+            const btnText = document.getElementById("scan-btn-text");
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = "1";
+            }
+            if (btnText) btnText.textContent = "Scan New Sample";
+        }
+
+        // Requirement 5: "Recent scans" list (last 5) with thumbnail, time, %, status
+        async function loadRecentScansList(unitId) {
+            const container = document.getElementById("recent-scans-list");
+            if (!container) return;
+
+            try {
+                const res = await fetchRecentScans(unitId, 5);
+                const scans = (res && res.scans) ? res.scans : [];
+
+                if (scans.length === 0) {
+                    container.innerHTML = `
+                        <div style="padding: 24px; text-align: center; color: var(--color-muted); font-size: 13px;">
+                            No recent scans yet for this unit.
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = scans.map((s, idx) => {
+                    const scanIdStr = s.scan_id || `SCN-2026-${s.id ? String(s.id).padStart(3, '0') : idx + 1}`;
+                    const timeStr = s.timestamp ? s.timestamp.split(" ")[1] || s.timestamp : "Today";
+                    const areaPct = s.fluorescence_area_pct !== undefined ? s.fluorescence_area_pct : 0.42;
+
+                    let status = s.screening_status || "Clear";
+                    let badgeClass = "risk-badge-safe";
+                    if (status === "Suspect") badgeClass = "risk-badge-medium";
+                    else if (status === "Positive") badgeClass = "risk-badge-high";
+
+                    const thumbUrl = s.image_url || `/api/scan-image/${s.id}?type=raw`;
+
+                    return `
+                        <div class="recent-scan-item" onclick="selectRecentScan(${s.id})">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <img src="${thumbUrl}" class="recent-thumbnail" alt="Thumb" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'44\\' fill=\\'%23111827\\'><rect width=\\'44\\' height=\\'44\\' fill=\\'%230F172A\\'/></svg>'" />
+                                <div>
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--color-text);">${scanIdStr}</div>
+                                    <div style="font-size: 11px; color: var(--color-muted);">${timeStr}</div>
+                                </div>
+                            </div>
+                            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                <span style="font-size: 13px; font-weight: 700; color: var(--color-text);">${areaPct}%</span>
+                                <span class="risk-badge ${badgeClass}" style="font-size: 10px; padding: 1px 6px;">${status}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
+
+            } catch (err) {
+                console.warn("Could not load recent scans list:", err);
+            }
+        }
+
+        async function selectRecentScan(scanId) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/scan-image/${scanId}?type=raw`);
+                if (res.ok) {
+                    const unitId = GrainState.getSelectedUnitId() || 1;
+                    const recentRes = await fetchRecentScans(unitId, 10);
+                    const matching = recentRes && recentRes.scans && recentRes.scans.find(s => s.id === scanId);
+                    if (matching) {
+                        currentScan = matching;
+                        isShowingMask = false;
+                        displayScanResult(matching);
+                    }
+                }
+            } catch (e) {
+                console.warn("Error selecting scan:", e);
+            }
+        }
+    </script>
+</body>
+</html>

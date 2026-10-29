@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+backend/grain_guardian.db
+
+# Uploads & temporary scan results
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Data & models (usually too large/sensitive for git)
+ai-model/data/raw/*
+ai-model/data/processed/*
+ai-model/models/*.h5
+ai-model/models/*.pkl
+ai-model/models/*.pk1
+!ai-model/data/raw/README.md
+!ai-model/data/processed/README.md
+
+# Jupyter & Testing
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Environment & Security Configs
+.env
+backend/config.py
+embedded/src/wifi_config.h
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
