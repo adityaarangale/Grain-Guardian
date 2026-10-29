@@ -8,6 +8,7 @@ import numpy as np
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 try:
     from config import JWT_SECRET_KEY
 except ImportError:
@@ -107,9 +108,53 @@ GRAIN_THRESHOLDS = {
 }
 
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 @app.route("/")
 def home():
+    # If browser requests HTML explicitly, serve index.html; API testers get JSON
+    accept = request.headers.get("Accept", "")
+    if "text/html" in accept and "application/json" not in accept:
+        index_file = os.path.join(ROOT_DIR, "index.html")
+        if os.path.exists(index_file):
+            return send_file(index_file)
     return jsonify({"status": "Grain Guardian backend is running"})
+
+
+@app.route("/signup.html")
+def serve_signup():
+    signup_file = os.path.join(ROOT_DIR, "signup.html")
+    if os.path.exists(signup_file):
+        return send_file(signup_file)
+    return jsonify({"error": "Not found"}), 404
+
+
+@app.route("/pages/<path:filename>")
+def serve_pages(filename):
+    pages_dir = os.path.join(ROOT_DIR, "pages")
+    file_path = os.path.join(pages_dir, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path)
+    return jsonify({"error": "Page not found"}), 404
+
+
+@app.route("/css/<path:filename>")
+def serve_css(filename):
+    css_dir = os.path.join(ROOT_DIR, "css")
+    file_path = os.path.join(css_dir, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, mimetype="text/css")
+    return jsonify({"error": "CSS not found"}), 404
+
+
+@app.route("/js/<path:filename>")
+def serve_js(filename):
+    js_dir = os.path.join(ROOT_DIR, "js")
+    file_path = os.path.join(js_dir, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, mimetype="application/javascript")
+    return jsonify({"error": "Script not found"}), 404
+
 
 
 @app.route("/api/health", methods=["GET"])

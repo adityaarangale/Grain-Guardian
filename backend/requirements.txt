@@ -1,6 +1,12 @@
-Flask==3.0.0
-flask-cors==4.0.0
-flask-bcrypt==1.0.1
-flask-jwt-extended==4.7.4
-requests==2.31.0
-gunicorn==23.0.0
+# ==========================================
+# Grain Guardian Backend - Requirements
+# ==========================================
+
+Flask>=3.0.0
+flask-cors>=4.0.0
+flask-bcrypt>=1.0.1
+flask-jwt-extended>=4.7.4
+opencv-python-headless>=4.8.0.76
+numpy>=1.24.0
+requests>=2.31.0
+gunicorn>=21.2.0

@@ -35,8 +35,11 @@ CREATE TABLE IF NOT EXISTS scan_results (
     storage_unit_id INTEGER NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     image_path TEXT NOT NULL,
+    mask_path TEXT,
     contamination_risk TEXT NOT NULL,
     confidence REAL NOT NULL,
+    fluorescence_area_pct REAL DEFAULT 0.0,
+    screening_status TEXT DEFAULT 'Clear',
     FOREIGN KEY (storage_unit_id) REFERENCES storage_units (id)
 );
 

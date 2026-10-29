@@ -4,7 +4,26 @@
  * Supports JWT Bearer Authentication & Session Token Management
  */
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = (function () {
+    if (typeof window !== "undefined") {
+        if (window.GRAIN_GUARDIAN_API_URL) return window.GRAIN_GUARDIAN_API_URL;
+        try {
+            const stored = localStorage.getItem("gg_api_url");
+            if (stored) return stored;
+        } catch (e) {}
+
+        // Local development or file opening
+        if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") {
+            return "http://localhost:5000/api";
+        }
+
+        // Full-stack cloud deployment (Render, Railway, Heroku, Docker)
+        if (!window.location.hostname.includes("github.io")) {
+            return `${window.location.origin}/api`;
+        }
+    }
+    return "http://localhost:5000/api";
+})();
 
 // In-memory token storage (persisted in SessionStorage when available)
 let authToken = sessionStorage.getItem("gg_token") || null;

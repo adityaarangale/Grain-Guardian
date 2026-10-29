@@ -1,0 +1,20 @@
+# ==========================================
+# Grain Guardian - Production Python Requirements
+# ==========================================
+
+# Core REST API & Middleware
+Flask>=3.0.0
+flask-cors>=4.0.0
+flask-bcrypt>=1.0.1
+flask-jwt-extended>=4.7.4
+
+# Computer Vision & Machine Learning (Headless for cloud deployments)
+opencv-python-headless>=4.8.0.76
+numpy>=1.24.0
+
+# Hardware Serial & Ingestion
+pyserial>=3.5
+requests>=2.31.0
+
+# Production WSGI Server for Render / Railway / Heroku
+gunicorn>=21.2.0

@@ -89,33 +89,82 @@ When real parts arrive, connect physical hardware to Grain Guardian seamlessly w
 
 ---
 
-## 4. Frontend Application
+---
 
-The frontend consists of 6 unified pages sharing one layout, design token system, and synchronized state:
-1. **Dashboard** (`frontend/pages/dashboard.html`): Key KPIs, live reading strip, active units table, latest alerts, and last scan.
-2. **Storage Monitoring** (`frontend/pages/storage-monitoring.html`): 4 live sensor metric cards, system status with clean-air baseline calibration, and sensor log table.
-3. **AI Prediction** (`frontend/pages/ai-prediction.html`): Spoilage probability donut, safe storage range, 14-day risk trajectory, and input factor breakdown.
-4. **Contamination Scan** (`frontend/pages/contamination-scan.html`): Interactive UV scan stepper, real 365nm optical frame, HSV fluorescence overlay mask, and recent scans.
-5. **Analytics** (`frontend/pages/analytics.html`): 4 telemetry curve line charts (Temp, Humidity, Gas Index, Moisture), overall risk chart, and CSV export.
-6. **Alerts** (`frontend/pages/alerts.html`): Real filterable alert stream, "View Details" modal with exact sensor readings, and acknowledgment.
+## 4. Frontend Application Structure
 
-*Note: The frontend automatically displays a **"Demo data"** badge in the top bar only when the API reports simulation mode (`SIMULATE=1`).*
+The web application is structured at the project root for frictionless **Git Deployment** (GitHub Pages, Vercel, Netlify, or direct Flask serving):
+
+- **Login / Entry Point** (`index.html`): Secure authentication interface with 1-click **Live Demo Mode** fallback for static hosting.
+- **Sign Up** (`signup.html`): Operator registration.
+- **Dashboard** (`pages/dashboard.html`): Facility KPI overview, live telemetry status strip, active units table, latest alerts, and UV scan preview.
+- **Storage Monitoring** (`pages/storage-monitoring.html`): 4 real-time sensor cards (Temp, Humidity, Gas Index, Moisture), hardware calibration, and sensor reading history.
+- **AI Prediction** (`pages/ai-prediction.html`): Agronomic spoilage probability gauge, safe storage days range, 14-day risk trajectory chart, and environmental factor breakdown.
+- **Contamination Scan** (`pages/contamination-scan.html`): 365nm UV fluorescence screening stepper, real-time OpenCV HSV luminescence segmentation mask overlay, and historical screening log.
+- **Analytics** (`pages/analytics.html`): Multi-sensor historical telemetry trend charts, interactive time range filter (24h, 7d, 30d), and CSV dataset export.
+- **Alerts** (`pages/alerts.html`): Real-time threshold breach notifications with modal sensor inspection and acknowledgment workflow.
 
 ---
 
-## 5. Development & Testing
+## 5. Git Deployment Guide
 
-Run all backend endpoints and auth integration tests:
-```bash
-python backend/test_api.py
-```
+### Option A: GitHub Pages (Instant Static Frontend Demo)
+1. Push your repository to GitHub.
+2. In your GitHub repo, navigate to **Settings** &rarr; **Pages**.
+3. Under **Build and deployment**:
+   - **Source**: `Deploy from a branch`
+   - **Branch**: `main`
+   - **Folder**: `/ (root)`
+4. Click **Save**. Your site will be published at `https://<username>.github.io/grain-guardian/` within seconds!
+5. Visitors can log in against a live backend or click **"Explore Live Demo Mode"** to test all telemetry, AI charts, and UV optical filters offline.
 
-Test AI prediction model standalone:
-```bash
-python ai-model/test_predict.py
-```
+### Option B: Full-Stack Cloud Deployment (Render / Railway / Heroku)
+The repository includes a ready-to-use `Procfile` and root `requirements.txt`:
+1. Connect your GitHub repository to **Render** (or Railway / Heroku).
+2. Choose **Web Service** with **Python 3.11+** environment.
+3. Build Command:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Start Command:
+   ```bash
+   gunicorn --chdir backend app:app
+   ```
+   *(Or let the platform automatically read `Procfile`)*.
+5. In your frontend or browser, set `window.GRAIN_GUARDIAN_API_URL` or `localStorage.setItem("gg_api_url", "https://your-service.onrender.com/api")`.
 
-Run hardware bridge in single-shot test mode:
-```bash
-python hardware_bridge.py --once
-```
+---
+
+## 6. Local Development & Testing
+
+### Running the System Locally
+1. **Start Backend API & Web Server**:
+   ```bash
+   python backend/app.py
+   ```
+   *Serves both the REST API and the frontend at `http://localhost:5000`.*
+
+2. **Start Hardware Bridge (or Simulator)**:
+   ```bash
+   python hardware_bridge.py
+   ```
+
+3. **Alternative Static Local Server**:
+   ```bash
+   python -m http.server 8000
+   ```
+   *Open `http://localhost:8000` in your web browser.*
+
+### Running Automated Test Suites
+- **Full Backend API & JWT Auth Tests**:
+  ```bash
+  python backend/test_api.py
+  ```
+- **AI Prediction & Contamination Model Standalone Tests**:
+  ```bash
+  python ai-model/test_predict.py
+  ```
+- **Hardware Bridge Ingestion Verification**:
+  ```bash
+  python hardware_bridge.py --once
+  ```

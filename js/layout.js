@@ -98,6 +98,15 @@
         const title = options.title || currentMeta.title;
         const subtitle = options.subtitle || currentMeta.subtitle;
 
+        // Ensure brand favicon exists in head
+        if (!document.querySelector("link[rel*='icon']")) {
+            const fav = document.createElement("link");
+            fav.rel = "icon";
+            fav.type = "image/svg+xml";
+            fav.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23012d1d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2v20M7 7l5-5 5 5M4 14l8-8 8 8M2 20l10-10 10 10'/></svg>";
+            document.head.appendChild(fav);
+        }
+
         // Existing page content element
         let pageContentElem = document.getElementById("page-content") || document.querySelector("main");
         const existingContentHtml = pageContentElem ? pageContentElem.innerHTML : "";

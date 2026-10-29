@@ -6,6 +6,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Grain Guardian - Login</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23012d1d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2v20M7 7l5-5 5 5M4 14l8-8 8 8M2 20l10-10 10 10'/></svg>" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
         rel="stylesheet" />
@@ -173,10 +174,24 @@
                             </a>
                         </div>
                     </div>
-                    <div class="pt-sm">
-                        <button id="loginBtn" class="w-full flex justify-center py-sm px-4 border border-transparent rounded-DEFAULT shadow-sm font-label-md text-label-md text-on-primary bg-primary-container hover:bg-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+                    <div class="pt-sm space-y-3">
+                        <button id="loginBtn" class="w-full flex justify-center py-sm px-4 border border-transparent rounded-DEFAULT shadow-sm font-label-md text-label-md text-on-primary bg-primary-container hover:bg-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors cursor-pointer"
                             type="submit">
                             Login
+                        </button>
+
+                        <div class="relative flex py-1 items-center">
+                            <div class="flex-grow border-t border-outline-variant"></div>
+                            <span class="flex-shrink mx-3 text-xs text-on-surface-variant font-medium">OR FOR GIT / LIVE PREVIEW</span>
+                            <div class="flex-grow border-t border-outline-variant"></div>
+                        </div>
+
+                        <button type="button" onclick="enterDemoMode()" id="demoBtn"
+                            class="w-full flex items-center justify-center gap-2 py-sm px-4 border border-outline-variant rounded-DEFAULT font-label-md text-label-md text-on-surface bg-surface-bright hover:bg-surface-container-high transition-colors cursor-pointer">
+                            <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+                            </svg>
+                            <span>Explore Live Demo Mode (No Backend Required)</span>
                         </button>
                     </div>
                 </form>
@@ -186,6 +201,9 @@
                 <p class="font-body-md text-body-md text-on-surface-variant">
                     Don't have an account?
                     <a class="font-label-md text-label-md text-primary hover:text-primary-container ml-1" href="signup.html">Sign Up</a>
+                </p>
+                <p class="text-xs text-on-surface-variant mt-2">
+                    Default Test Account: <span class="font-mono text-primary">manager_test@facility.com</span> / <span class="font-mono text-primary">Password123!</span>
                 </p>
             </div>
         </div>
@@ -202,6 +220,14 @@
                 alertBox.classList.remove("hidden");
             }
         });
+
+        function enterDemoMode() {
+            try {
+                localStorage.setItem("gg_simulate_mode", "true");
+                sessionStorage.setItem("gg_token", "demo-token-active");
+            } catch (e) {}
+            window.location.href = "pages/dashboard.html";
+        }
 
         async function handleLogin(event) {
             event.preventDefault();
@@ -227,7 +253,13 @@
             } else {
                 const errMsg = res.data ? res.data.message : "Invalid email or password.";
                 alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-error-container text-on-error-container border border-error";
-                alertBox.innerText = errMsg;
+                alertBox.innerHTML = `
+                    <div>${errMsg}</div>
+                    <div class="mt-2 text-xs">
+                        Testing on GitHub Pages or local preview without backend? 
+                        <button type="button" onclick="enterDemoMode()" class="underline font-bold hover:opacity-80 ml-1">Click here to enter Demo Mode &rarr;</button>
+                    </div>
+                `;
                 alertBox.classList.remove("hidden");
             }
         }
