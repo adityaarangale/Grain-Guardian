@@ -201,6 +201,53 @@ void sendCameraHeartbeat() {
   http.end();
 }
 
+unsigned long lastFrameUploadTime = 0;
+#define FRAME_UPLOAD_INTERVAL_MS 1000 // Upload frame every 1s for seamless HTTPS web display
+
+/**
+ * Captures and uploads a live JPEG frame to Render over HTTPS.
+ * Enables in-webpage camera display without mixed-content browser restrictions.
+ */
+void uploadCameraFrame() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("[Camera] Capture failed for frame upload");
+    return;
+  }
+
+  HTTPClient http;
+#ifdef BACKEND_BASE_URL
+  String url = String(BACKEND_BASE_URL) + "/api/camera/frame";
+#else
+  String protocol = USE_HTTPS ? "https://" : "http://";
+  String url = protocol + String(BACKEND_HOST) + ":" + String(BACKEND_PORT) + "/api/camera/frame";
+#endif
+
+  WiFiClientSecure secClient;
+  WiFiClient plainClient;
+  if (url.startsWith("https://")) {
+    secClient.setInsecure();
+    http.begin(secClient, url);
+  } else {
+    http.begin(plainClient, url);
+  }
+  http.setTimeout(2500);
+  http.addHeader("Content-Type", "image/jpeg");
+  http.addHeader("X-Device-Token", DEVICE_TOKEN);
+
+  int httpCode = http.POST(fb->buf, fb->len);
+  if (httpCode > 0) {
+    Serial.printf("[Cloud Stream] Live frame uploaded (%u bytes, HTTP %d)\n", fb->len, httpCode);
+  } else {
+    Serial.printf("[Cloud Stream] Upload error: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  esp_camera_fb_return(fb);
+  http.end();
+}
+
 void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // Disable brownout detector to prevent reboot spikes on mobile hotspot
 
@@ -273,6 +320,14 @@ void loop() {
     lastHeartbeatTime = currentMillis;
     if (WiFi.status() == WL_CONNECTED) {
       sendCameraHeartbeat();
+    }
+  }
+
+  // Upload live JPEG frame every 1s to cloud relay (enables in-webpage viewing without mixed content errors)
+  if (currentMillis - lastFrameUploadTime >= FRAME_UPLOAD_INTERVAL_MS) {
+    lastFrameUploadTime = currentMillis;
+    if (WiFi.status() == WL_CONNECTED) {
+      uploadCameraFrame();
     }
   }
 

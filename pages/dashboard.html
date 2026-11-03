@@ -301,7 +301,13 @@
                                 <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-cam-header"></span>
                                 <span>ESP32-CAM Live Feed</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" id="btn-cam-mode-cloud" class="badge badge-primary" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('cloud')" title="Relayed over Render HTTPS (No mixed-content errors)">
+                                    Cloud Feed
+                                </button>
+                                <button type="button" id="btn-cam-mode-local" class="badge badge-neutral" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('local')" title="Direct local Wi-Fi port 81 stream">
+                                    Direct Wi-Fi
+                                </button>
                                 <button type="button" class="btn-primary btn-sm" id="btn-camera-toggle" onclick="toggleCameraStream()">
                                     Open Camera
                                 </button>
@@ -892,15 +898,30 @@
          * Camera Stream Viewer Logic
          * Supports direct configurable local Wi-Fi MJPEG stream without reloading page.
          */
+        let cameraFrameTimer = null;
+        let cameraFeedSource = "cloud"; // "cloud" (HTTPS relay, works in all browsers) or "local"
+
+        function setCameraFeedSource(src) {
+            cameraFeedSource = src;
+            const btnCloud = document.getElementById("btn-cam-mode-cloud");
+            const btnLocal = document.getElementById("btn-cam-mode-local");
+            if (btnCloud) btnCloud.className = src === "cloud" ? "badge badge-primary" : "badge badge-neutral";
+            if (btnLocal) btnLocal.className = src === "local" ? "badge badge-primary" : "badge badge-neutral";
+            if (isCameraStreaming) {
+                clearTimeout(cameraFrameTimer);
+                startCameraPlayback();
+            }
+        }
+
         async function toggleCameraStream() {
             const btn = document.getElementById("btn-camera-toggle");
             const img = document.getElementById("esp32-cam-stream-img");
             const loader = document.getElementById("cam-loader");
             const standby = document.getElementById("cam-standby-box");
-            const urlInput = document.getElementById("cam-url-input");
 
             if (isCameraStreaming) {
                 // STOP CAMERA
+                clearTimeout(cameraFrameTimer);
                 img.src = "";
                 img.style.display = "none";
                 loader.style.display = "none";
@@ -918,44 +939,78 @@
             btn.className = "btn-outline btn-sm";
             isCameraStreaming = true;
 
-            // Check camera status from backend
-            const camStat = await fetchCameraStatus();
-            let targetUrl = (camStat && camStat.stream_url) ? camStat.stream_url : (urlInput ? urlInput.value.trim() : "");
-            if (!targetUrl) {
-                targetUrl = "http://192.168.1.150:81/stream";
+            startCameraPlayback();
+        }
+
+        async function startCameraPlayback() {
+            const img = document.getElementById("esp32-cam-stream-img");
+            const loader = document.getElementById("cam-loader");
+            const standby = document.getElementById("cam-standby-box");
+            const urlInput = document.getElementById("cam-url-input");
+
+            if (!isCameraStreaming) return;
+
+            if (cameraFeedSource === "cloud") {
+                // Pure HTTPS Cloud Relay - zero mixed content errors, displays directly in webpage!
+                function fetchNextFrame() {
+                    if (!isCameraStreaming || cameraFeedSource !== "cloud") return;
+                    img.src = `${API_BASE_URL}/camera/frame?t=${Date.now()}`;
+                }
+
+                img.onload = () => {
+                    loader.style.display = "none";
+                    img.style.display = "block";
+                    standby.style.display = "none";
+                    clearTimeout(cameraFrameTimer);
+                    if (isCameraStreaming && cameraFeedSource === "cloud") {
+                        cameraFrameTimer = setTimeout(fetchNextFrame, 800);
+                    }
+                };
+
+                img.onerror = () => {
+                    clearTimeout(cameraFrameTimer);
+                    if (isCameraStreaming && cameraFeedSource === "cloud") {
+                        // Retry shortly if backend is still waiting for first frame
+                        cameraFrameTimer = setTimeout(fetchNextFrame, 2000);
+                    }
+                };
+
+                fetchNextFrame();
+            } else {
+                // Local Direct Port 81 Stream
+                const camStat = await fetchCameraStatus();
+                let targetUrl = (camStat && camStat.stream_url) ? camStat.stream_url : (urlInput ? urlInput.value.trim() : "");
+                if (!targetUrl) targetUrl = "http://192.168.1.150:81/stream";
+
+                img.onload = () => {
+                    loader.style.display = "none";
+                    img.style.display = "block";
+                    standby.style.display = "none";
+                };
+
+                img.onerror = () => {
+                    loader.style.display = "none";
+                    img.style.display = "none";
+                    standby.style.display = "block";
+                    document.getElementById("cam-standby-title").textContent = "Local Wi-Fi Stream Notice";
+                    document.getElementById("cam-standby-desc").innerHTML = `
+                        <div style="margin-bottom: 8px; color: #f8fafc; font-size: 13px;">
+                            Stream target: <code class="font-mono" style="color: #6ee7b7; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px;">${targetUrl}</code>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 8px 16px;">
+                                <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
+                                Open Stream in New Tab
+                            </a>
+                        </div>
+                        <div style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
+                            Or switch to <strong>Cloud Feed</strong> above to view inside the page without browser warnings.
+                        </div>
+                    `;
+                };
+
+                img.src = targetUrl;
             }
-
-            // Set stream source
-            img.onload = () => {
-                loader.style.display = "none";
-                img.style.display = "block";
-            };
-
-            img.onerror = () => {
-                loader.style.display = "none";
-                img.style.display = "none";
-                standby.style.display = "block";
-                document.getElementById("cam-standby-title").textContent = "Camera Stream Security Notice";
-                document.getElementById("cam-standby-desc").innerHTML = `
-                    <div style="margin-bottom: 8px; color: #f8fafc; font-size: 13px;">
-                        Stream target: <code class="font-mono" style="color: #6ee7b7; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px;">${targetUrl}</code>
-                    </div>
-                    <div style="margin: 12px 0;">
-                        <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 8px 16px;">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
-                            Open Live Stream in New Tab
-                        </a>
-                    </div>
-                    <div style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 10px; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 6px;">
-                        <strong>Why is this blocked inside the page?</strong><br/>
-                        GitHub Pages runs on <code>HTTPS</code>, which blocks local Wi-Fi <code>HTTP</code> camera feeds by default.<br/>
-                        &bull; <em>Instant view:</em> Click the button above to view live in a new tab.<br/>
-                        &bull; <em>To view inside this webpage:</em> In Chrome/Edge, click the tune/padlock icon next to the URL &rarr; <strong>Site settings</strong> &rarr; <strong>Insecure content</strong> &rarr; <strong>Allow</strong>.
-                    </div>
-                `;
-            };
-
-            img.src = targetUrl;
         }
 
         async function updateUnitsAndKpis(currentSummary, selectedUnitId) {

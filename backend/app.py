@@ -5,7 +5,7 @@ import json
 import time
 import cv2
 import numpy as np
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, Response, make_response
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
@@ -154,7 +154,9 @@ RUNTIME_STATE = {
             "ip": None,
             "firmware_version": "1.0.0",
             "status": "offline",
-            "stream_url": None
+            "stream_url": None,
+            "latest_frame": None,
+            "last_frame_ts": 0
         }
     },
     "relays": {
@@ -1071,8 +1073,65 @@ def get_camera_status():
         "heartbeat_age_seconds": round(age, 1) if last_hb > 0 else None,
         "stream_url": stream_url if is_online else None,
         "device_ip": cam_info.get("ip"),
-        "advisory": "Camera stream is served locally over Wi-Fi. Accessing private local IPs from external networks (e.g. GitHub Pages) requires client and camera on the same Wi-Fi network, or a port forward / tunnel."
+        "has_frame": bool(cam_info.get("latest_frame")),
+        "frame_age_seconds": round(now_ts - cam_info["last_frame_ts"], 1) if cam_info.get("last_frame_ts") else None,
+        "cloud_frame_url": "/api/camera/frame",
+        "advisory": "Camera stream is served locally over Wi-Fi, and live frames are relayed via Render HTTPS for seamless in-page display without mixed-content errors."
     }), 200
+
+
+@app.route("/api/camera/frame", methods=["POST"])
+def upload_camera_frame():
+    """
+    POST /api/camera/frame
+    Receives raw JPEG byte stream or multipart image from ESP32-CAM.
+    Stores frame in memory for HTTPS browser playback without mixed-content errors.
+    """
+    now_ts = time.time()
+    frame_bytes = None
+
+    if request.files and "image" in request.files:
+        frame_bytes = request.files["image"].read()
+    else:
+        frame_bytes = request.get_data()
+
+    if not frame_bytes or len(frame_bytes) < 100:
+        return jsonify({"success": False, "error": "Invalid or empty image frame"}), 400
+
+    cam_info = RUNTIME_STATE["devices"]["esp32-cam"]
+    cam_info["latest_frame"] = frame_bytes
+    cam_info["last_frame_ts"] = now_ts
+    cam_info["last_heartbeat"] = now_ts
+    cam_info["status"] = "online"
+
+    return jsonify({"success": True, "size": len(frame_bytes), "timestamp": now_ts}), 200
+
+
+@app.route("/api/camera/frame", methods=["GET"])
+def get_camera_frame():
+    """
+    GET /api/camera/frame
+    Serves the latest ESP32-CAM frame directly over HTTPS to the frontend.
+    Enables embedded camera viewing on GitHub Pages without mixed-content security errors.
+    """
+    cam_info = RUNTIME_STATE["devices"]["esp32-cam"]
+    frame_bytes = cam_info.get("latest_frame")
+
+    if not frame_bytes:
+        # Generate a clean 320x240 dark placeholder image with informative text if no frame yet
+        blank = np.zeros((240, 320, 3), dtype=np.uint8)
+        blank[:] = (25, 30, 27)  # Dark green/gray
+        cv2.putText(blank, "GRAIN GUARDIAN", (65, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (110, 231, 183), 2)
+        cv2.putText(blank, "Awaiting Camera Feed...", (55, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (148, 163, 184), 1)
+        _, enc = cv2.imencode(".jpg", blank, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        frame_bytes = enc.tobytes()
+
+    resp = Response(frame_bytes, mimetype="image/jpeg")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 
