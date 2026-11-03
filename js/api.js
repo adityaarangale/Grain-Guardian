@@ -203,19 +203,70 @@ async function createStorageUnit(location, grainType) {
 }
 
 /**
- * Fetch aggregated dashboard report for a storage unit (Protected).
+ * Fetch aggregated dashboard report for a storage unit (supports AbortSignal to prevent overlapping requests).
  */
-async function fetchDashboardSummary(unitId = 1) {
+async function fetchDashboardSummary(unitId = 1, options = {}) {
     try {
         if (!authToken) await ensureAuthToken();
-        const response = await fetch(`${API_BASE_URL}/dashboard/${unitId}`, {
+        const fetchOptions = {
             headers: getAuthHeaders()
-        });
+        };
+        if (options.signal) {
+            fetchOptions.signal = options.signal;
+        }
+        const response = await fetch(`${API_BASE_URL}/dashboard/${unitId}`, fetchOptions);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return await response.json();
     } catch (error) {
+        if (error.name === "AbortError") {
+            return null; // Gracefully handle aborted requests
+        }
         console.error(`Error fetching dashboard for unit ${unitId}:`, error);
         return null;
+    }
+}
+
+/**
+ * Fetch real-time camera status, availability, and stream URL.
+ */
+async function fetchCameraStatus(options = {}) {
+    try {
+        const fetchOptions = {};
+        if (options.signal) fetchOptions.signal = options.signal;
+        const response = await fetch(`${API_BASE_URL}/camera/status`, fetchOptions);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        if (error.name === "AbortError") return null;
+        console.warn("Error fetching camera status:", error);
+        return { status: "error", online: false, stream_url: null };
+    }
+}
+
+/**
+ * Issue hardware light relay actuation command (White Light / UV Light with mutual exclusion).
+ * target: "uv" | "white"
+ * state: "on" | "off"
+ */
+async function issueRelayCommand(target, state, options = {}) {
+    try {
+        const payload = { target, state };
+        const fetchOptions = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify(payload)
+        };
+        if (options.signal) fetchOptions.signal = options.signal;
+
+        const response = await fetch(`${API_BASE_URL}/device/command`, fetchOptions);
+        const data = await safeParseJson(response);
+        return { ok: response.ok, status: response.status, data };
+    } catch (error) {
+        console.error("Error issuing relay command:", error);
+        return { ok: false, status: 500, data: { status: "error", message: "Network error sending actuation command." } };
     }
 }
 

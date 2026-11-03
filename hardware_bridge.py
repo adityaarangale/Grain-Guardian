@@ -181,27 +181,30 @@ class BridgeState:
         unit["hum"] = round(max(50.0, min(80.0, unit["hum"] + random.uniform(-0.25, 0.25))), 1)
         unit["gas"] = int(max(80, min(260, unit["gas"] + random.randint(-4, 4))))
         unit["moist"] = round(max(7.0, min(17.5, unit["moist"] + random.uniform(-0.08, 0.08))), 1)
+        raw_m = int(3200 - (unit["moist"] - 8.0) * (1700.0 / 17.0))
         return {
             "storage_unit_id": unit["id"],
             "grain_type": unit["grain"],
             "temperature": unit["temp"],
             "humidity": unit["hum"],
             "gas_index": unit["gas"],
-            "moisture": unit["moist"]
+            "moisture": unit["moist"],
+            "raw_moisture": max(1200, min(3500, raw_m)),
+            "mq2_raw": unit["gas"] + random.randint(15, 30),
+            "is_calibrated": True
         }
 
 
-def run_simulation_mode(config, loop_delay=5.0, max_iterations=None):
+def run_simulation_mode(config, loop_delay=3.0, max_iterations=None):
     """
-    SIMULATE=1: Generates realistic continuous readings and periodic UV scan uploads.
+    SIMULATE=1: Generates continuous readings, device heartbeats, and processes actuation commands.
     """
     print("\n=======================================================")
     print("  GRAIN GUARDIAN - HARDWARE BRIDGE (SIMULATION MODE)   ")
     print("=======================================================")
     print(f"  * Mode        : SIMULATE = 1 (Synthetic Telemetry)")
-    print(f"  * Target API  : {config['API_URL']}/api/sensor-data")
+    print(f"  * Target API  : {config['API_URL']}")
     print(f"  * Loop Delay  : {loop_delay}s")
-    print("  * Contract    : {\"storage_unit_id\":1,\"grain_type\":\"wheat\",\"temperature\":28.5,\"humidity\":62.0,\"gas_index\":412,\"moisture\":13.2}")
     print("=======================================================\n")
 
     state = BridgeState(config.get("API_URL"))
@@ -209,7 +212,49 @@ def run_simulation_mode(config, loop_delay=5.0, max_iterations=None):
 
     while True:
         iteration += 1
-        # Alternate through units
+
+        # 1. Send Device Heartbeats for DevKit & ESP32-CAM
+        try:
+            requests.post(f"{config['API_URL']}/api/device/heartbeat", json={
+                "device_id": "esp32-devkit",
+                "firmware_version": "1.2.0",
+                "status": "online",
+                "ip_address": "127.0.0.1"
+            }, timeout=2.0)
+            requests.post(f"{config['API_URL']}/api/device/heartbeat", json={
+                "device_id": "esp32-cam",
+                "firmware_version": "1.1.0",
+                "status": "online",
+                "ip_address": "127.0.0.1",
+                "stream_url": f"{config['API_URL']}/api/scan-image/1?type=raw"
+            }, timeout=2.0)
+        except Exception:
+            pass
+
+        # 2. Check and Acknowledge Pending Commands
+        try:
+            cmd_res = requests.get(f"{config['API_URL']}/api/device/command", timeout=2.0)
+            if cmd_res.status_code == 200:
+                cmd_data = cmd_res.json()
+                if cmd_data.get("has_command") and cmd_data.get("command"):
+                    c = cmd_data["command"]
+                    cid = c.get("command_id")
+                    params = c.get("params", {})
+                    w = params.get("white_light", True)
+                    u = params.get("uv_light", False)
+                    print(f"[{time.strftime('%H:%M:%S')}] [Command Received] ID: {cid} | White: {w}, UV: {u}")
+                    # Acknowledge to backend
+                    requests.post(f"{config['API_URL']}/api/device/command-result", json={
+                        "command_id": cid,
+                        "status": "acknowledged",
+                        "white_light": w,
+                        "uv_light": u
+                    }, timeout=2.0)
+                    print(f"  -> Acknowledged {cid} successfully.")
+        except Exception as e:
+            pass
+
+        # 3. Alternate through units and post telemetry
         for unit in state.units:
             payload = state.step_telemetry(unit["id"])
             try:
@@ -221,9 +266,7 @@ def run_simulation_mode(config, loop_delay=5.0, max_iterations=None):
                 )
                 if res.status_code == 201:
                     print(f"[{time.strftime('%H:%M:%S')}] [Unit #{payload['storage_unit_id']} - {payload['grain_type'].capitalize()}] "
-                          f"Temp: {payload['temperature']}°C | Hum: {payload['humidity']}% | Gas: {payload['gas_index']} | Moist: {payload['moisture']}% -> HTTP 201 (OK)")
-                else:
-                    print(f"[{time.strftime('%H:%M:%S')}] [POST Failed] HTTP {res.status_code}: {res.text}")
+                          f"Temp: {payload['temperature']}°C | Hum: {payload['humidity']}% | Gas: {payload['gas_index']} | Moist: {payload['moisture']}% (Raw: {payload['raw_moisture']}) -> HTTP 201")
             except Exception as e:
                 print(f"[{time.strftime('%H:%M:%S')}] [API Connect Error]: {e}")
 

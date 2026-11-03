@@ -37,6 +37,10 @@ jobs:
       run: |
         python backend/test_auth_regression.py
 
+    - name: Run Hardware API Tests
+      run: |
+        python backend/test_hardware_api.py
+
     - name: Run Backend Integration & API Tests
       run: |
         python backend/app.py &

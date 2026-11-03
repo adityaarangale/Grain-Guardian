@@ -26,10 +26,35 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     humidity REAL NOT NULL,
     gas_index INTEGER NOT NULL,
     moisture REAL NOT NULL,
+    raw_moisture INTEGER,
+    mq2_raw INTEGER,
     FOREIGN KEY (storage_unit_id) REFERENCES storage_units (id)
 );
 
--- 4. Contamination Scan Results Table
+-- 4. Device Commands Table (Separate from sensor telemetry)
+CREATE TABLE IF NOT EXISTS device_commands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    command_id TEXT UNIQUE NOT NULL,
+    action TEXT NOT NULL,
+    payload TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    result TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    executed_at DATETIME
+);
+
+-- 5. Device Heartbeats Table
+CREATE TABLE IF NOT EXISTS device_heartbeats (
+    device_id TEXT PRIMARY KEY,
+    device_type TEXT NOT NULL,
+    ip_address TEXT,
+    firmware_version TEXT,
+    stream_url TEXT,
+    status TEXT,
+    last_heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Contamination Scan Results Table
 CREATE TABLE IF NOT EXISTS scan_results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     storage_unit_id INTEGER NOT NULL,
@@ -43,7 +68,7 @@ CREATE TABLE IF NOT EXISTS scan_results (
     FOREIGN KEY (storage_unit_id) REFERENCES storage_units (id)
 );
 
--- 5. AI Spoilage Predictions Table
+-- 7. AI Spoilage Predictions Table
 CREATE TABLE IF NOT EXISTS predictions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     storage_unit_id INTEGER NOT NULL,
@@ -55,7 +80,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     FOREIGN KEY (storage_unit_id) REFERENCES storage_units (id)
 );
 
--- 6. Alerts Table
+-- 8. Alerts Table
 CREATE TABLE IF NOT EXISTS alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     storage_unit_id INTEGER NOT NULL,
@@ -68,4 +93,3 @@ CREATE TABLE IF NOT EXISTS alerts (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (storage_unit_id) REFERENCES storage_units (id)
 );
-

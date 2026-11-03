@@ -40,3 +40,10 @@ embedded/src/wifi_config.h
 Thumbs.db
 .vscode/
 .idea/
+
+# PlatformIO build artifacts
+.pio/
+**/.pio/
+*.bin
+*.elf
+embedded/**/wifi_config.h

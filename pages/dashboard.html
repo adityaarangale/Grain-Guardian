@@ -6,8 +6,8 @@
     <title>Dashboard - Grain Guardian</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
     <!-- Unified Theme Tokens & Layout Styles -->
     <link rel="stylesheet" href="../css/theme.css" />
     <style>
@@ -29,20 +29,80 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            padding: 12px 16px;
+            padding: 12px 14px;
             background: #F8FAFC;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-select);
             flex: 1;
-            min-width: 130px;
+            min-width: 120px;
+        }
+        .provisional-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: #fef7ea;
+            border: 1px solid #f8dfa9;
+            color: #b45309;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
     </style>
 </head>
 <body>
     <main id="page-content">
         <div class="grid-12">
-            <!-- ROW 1: Four KPI cards across the FULL width (Safe, Medium, High, Critical) -->
-            <!-- Safe KPI Card -->
+            <!-- ROW 0: INDEPENDENT DEVICE & HARDWARE MESH STATUS BAR -->
+            <div class="col-12">
+                <div class="device-status-bar" id="device-status-bar">
+                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); margin-right: 4px;">Hardware Status:</span>
+                    
+                    <!-- 1. Backend API -->
+                    <div class="device-pill online" id="pill-backend" title="Render Flask API Availability">
+                        <span class="tech-dot online" id="dot-backend"></span>
+                        <span>Backend API:</span>
+                        <strong id="label-backend">Online</strong>
+                    </div>
+
+                    <!-- 2. ESP32 DevKit Node (<15s) -->
+                    <div class="device-pill offline" id="pill-devkit" title="ESP32 Telemetry & Relay Controller Node (Offline if >15s without heartbeat)">
+                        <span class="tech-dot offline" id="dot-devkit"></span>
+                        <span>ESP32 DevKit:</span>
+                        <strong id="label-devkit">Standby</strong>
+                    </div>
+
+                    <!-- 3. ESP32-CAM Node (<20s) -->
+                    <div class="device-pill offline" id="pill-cam" title="ESP32-CAM Optical Screening Node (Offline if >20s without heartbeat)">
+                        <span class="tech-dot offline" id="dot-cam"></span>
+                        <span>ESP32-CAM:</span>
+                        <strong id="label-cam">Standby</strong>
+                    </div>
+
+                    <!-- 4. Telemetry Freshness -->
+                    <div class="device-pill" id="pill-freshness" title="Seconds since last verified sensor telemetry packet">
+                        <span class="tech-dot offline" id="dot-freshness"></span>
+                        <span>Telemetry:</span>
+                        <strong id="label-freshness">Awaiting data</strong>
+                    </div>
+
+                    <!-- 5. Relay Actuator Availability -->
+                    <div class="device-pill offline" id="pill-relay-avail" title="Actuation readiness for White Light / UV Light Relays">
+                        <span class="tech-dot offline" id="dot-relay-avail"></span>
+                        <span>Relay Control:</span>
+                        <strong id="label-relay-avail">Disabled (Offline)</strong>
+                    </div>
+
+                    <!-- 6. Camera Availability -->
+                    <div class="device-pill offline" id="pill-cam-avail" title="Local MJPEG stream availability">
+                        <span class="tech-dot offline" id="dot-cam-avail"></span>
+                        <span>Camera Stream:</span>
+                        <strong id="label-cam-avail">Standby</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 1: Four Agronomic KPI Cards (Safe, Medium, High, Critical) -->
             <div class="col-3">
                 <div class="theme-card" style="border-left: 4px solid var(--color-risk-safe); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -54,7 +114,6 @@
                 </div>
             </div>
 
-            <!-- Medium KPI Card -->
             <div class="col-3">
                 <div class="theme-card" style="border-left: 4px solid var(--color-risk-medium); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -66,7 +125,6 @@
                 </div>
             </div>
 
-            <!-- High KPI Card -->
             <div class="col-3">
                 <div class="theme-card" style="border-left: 4px solid var(--color-risk-high); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -74,11 +132,10 @@
                         <span style="width: 20px; height: 20px; color: var(--color-risk-high); display: flex;" id="kpi-icon-high"></span>
                     </div>
                     <div class="metric-value" id="kpi-count-high" style="color: var(--color-text); font-size: 34px;">-</div>
-                    <p style="font-size: 12px; color: var(--color-muted); margin-top: 6px; white-space: nowrap;">Active ventilation advised</p>
+                    <p style="font-size: 12px; color: var(--color-muted); margin-top: 6px; white-space: nowrap;">Active aeration advised</p>
                 </div>
             </div>
 
-            <!-- Critical KPI Card -->
             <div class="col-3">
                 <div class="theme-card" style="border-left: 4px solid var(--color-risk-critical); height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -90,7 +147,7 @@
                 </div>
             </div>
 
-            <!-- ROW 2: "Selected Unit Live Reading" strip for the selected unit -->
+            <!-- ROW 2: "Selected Unit Live Reading" Strip -->
             <div class="col-12">
                 <div class="theme-card" id="selected-unit-strip" style="border-left: 4px solid var(--color-brand-green);">
                     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">
@@ -104,65 +161,228 @@
                         <div style="display: flex; align-items: center; gap: 14px;">
                             <span id="strip-risk-badge-slot"></span>
                             <span style="font-size: 13px; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
-                                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-risk-safe); display: inline-block;"></span>
-                                <span id="strip-last-updated-text">Last updated: Just now</span>
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-risk-safe); display: inline-block;" id="strip-pulse-dot"></span>
+                                <span id="strip-last-updated-text">Last updated: Awaiting packet</span>
                             </span>
                         </div>
                     </div>
 
                     <!-- Live Metrics Row inside Strip -->
-                    <div id="strip-metrics-container" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-                        <!-- Temperature -->
+                    <div id="strip-metrics-container" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;">
+                        <!-- 1. Temperature (DHT22) -->
                         <div class="live-strip-metric">
                             <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
                                 <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-temp"></span> Temperature
                             </div>
-                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-temp">-</div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-temp">--°C</div>
+                            <span style="font-size: 11px; color: var(--color-muted);">DHT22 Digital</span>
                         </div>
 
-                        <!-- Humidity -->
+                        <!-- 2. Relative Humidity (DHT22) -->
                         <div class="live-strip-metric">
                             <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
                                 <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-humidity"></span> Humidity
                             </div>
-                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-humidity">-</div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-humidity">--% RH</div>
+                            <span style="font-size: 11px; color: var(--color-muted);">DHT22 Digital</span>
                         </div>
 
-                        <!-- Gas Index -->
+                        <!-- 3. Grain Moisture (Capacitive Probe) -->
+                        <div class="live-strip-metric">
+                            <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                                <span style="display: flex; align-items: center; gap: 4px;">
+                                    <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-moisture"></span> Moisture
+                                </span>
+                                <span id="strip-moisture-cal-badge" class="provisional-badge" style="font-size: 9px; padding: 1px 4px;">Uncalibrated</span>
+                            </div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-moisture">--%</div>
+                            <span style="font-size: 11px; color: var(--color-muted);" id="strip-moisture-raw-sub">Raw ADC: --</span>
+                        </div>
+
+                        <!-- 4. Gas Index (MQ-2 replacing MQ-135) -->
                         <div class="live-strip-metric">
                             <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
                                 <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-gas"></span> Gas Index
                             </div>
-                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-gas">-</div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-gas">--</div>
+                            <span style="font-size: 11px; color: var(--color-muted);" id="strip-mq2-raw-sub">MQ-2 Raw: --</span>
                         </div>
 
-                        <!-- Moisture -->
+                        <!-- 5. CO2 Status (Scientifically Honest Note) -->
                         <div class="live-strip-metric">
                             <div style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
-                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-moisture"></span> Grain Moisture
+                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-co2"></span> CO2 Sensor
                             </div>
-                            <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-moisture">-</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #64748b; margin: 4px 0;" id="strip-co2">Not installed</div>
+                            <span style="font-size: 11px; color: var(--color-muted);">MQ-2 != CO2</span>
                         </div>
 
-                        <!-- Safe Storage Days Range -->
+                        <!-- 6. Safe Storage Days Prediction -->
                         <div class="live-strip-metric" style="background: var(--color-brand-green-light); border-color: rgba(11, 61, 46, 0.2);">
                             <div style="font-size: 12px; font-weight: 700; color: var(--color-brand-green); display: flex; align-items: center; gap: 6px;">
                                 <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;" id="strip-icon-days"></span> Safe-Days Range
                             </div>
-                            <div style="font-size: 22px; font-weight: 700; color: var(--color-brand-green);" id="strip-safe-days">-</div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--color-brand-green);" id="strip-safe-days">-- Days</div>
+                            <span style="font-size: 11px; color: var(--color-brand-green);">Agronomic rule estimate</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ROW 3: "Active Units" table with columns Unit, Grain, Temp, Humidity, Gas Index, Moisture, Risk, Last Updated -->
+            <!-- ROW 3: TWO INTERACTIVE HARDWARE PANELS: Dual Light Control & ESP32-CAM Stream -->
+            <!-- 1. Dual Light & Relay Control Panel (Col-6) -->
+            <div class="col-6">
+                <div class="theme-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="theme-card-header" style="margin-bottom: 12px;">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-lights-header"></span>
+                                <span>Light & Relay Actuator Controls</span>
+                            </div>
+                            <span id="relay-status-pill" class="device-pill online" style="font-size: 11px;">
+                                <span class="tech-dot online" id="relay-status-dot"></span>
+                                <span id="relay-status-text">Relay Synced</span>
+                            </span>
+                        </div>
+
+                        <p style="font-size: 13px; color: var(--color-muted); margin-bottom: 14px; line-height: 1.45;">
+                            Hardware-interlocked dual relay channel. Default safe operating state is <strong>White Light ON</strong> and <strong>UV Light OFF</strong>. Both lights are never energized simultaneously.
+                        </p>
+
+                        <!-- White Light Box -->
+                        <div class="relay-control-box active-light" id="box-white-light" style="margin-bottom: 10px;">
+                            <div>
+                                <div style="font-size: 14px; font-weight: 700; color: var(--color-text); display: flex; align-items: center; gap: 8px;">
+                                    <span>White Inspection Light</span>
+                                    <span id="badge-white-state" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #eaf6ee; color: var(--color-risk-safe); font-weight: 700;">ON</span>
+                                </div>
+                                <span style="font-size: 12px; color: var(--color-muted);">Relay Channel 1 (Standard chamber illumination)</span>
+                            </div>
+                            <button type="button" class="btn-outline btn-sm" id="btn-toggle-white" onclick="handleLightToggle('white')" disabled>
+                                Turn White Light ON
+                            </button>
+                        </div>
+
+                        <!-- UV Light Box -->
+                        <div class="relay-control-box" id="box-uv-light" style="margin-bottom: 12px;">
+                            <div>
+                                <div style="font-size: 14px; font-weight: 700; color: var(--color-text); display: flex; align-items: center; gap: 8px;">
+                                    <span>365nm UV Fluorescence Light</span>
+                                    <span id="badge-uv-state" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f1f5f9; color: #64748b; font-weight: 700;">OFF</span>
+                                </div>
+                                <span style="font-size: 12px; color: var(--color-muted);">Relay Channel 2 (Optical fluorescence excitation)</span>
+                            </div>
+                            <button type="button" class="btn-primary btn-sm" id="btn-toggle-uv" onclick="handleLightToggle('uv')" disabled>
+                                Turn UV Light ON
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Command State & Mutual Exclusion Status -->
+                    <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 10px 14px; font-size: 12px; line-height: 1.45;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-weight: 600; color: var(--color-text);">Actuation State:</span>
+                            <span id="command-lifecycle-tag" class="font-mono" style="font-size: 11px; font-weight: 700; color: var(--color-brand-green);">Confirmed by DevKit</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; color: var(--color-muted); font-size: 11px;">
+                            <span>Command Sequence: <strong id="command-seq-text" class="font-mono">cmd_none</strong></span>
+                            <span id="command-offline-warning" style="color: var(--color-risk-high); font-weight: 600; display: none;">DevKit offline</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ESP32-CAM Live Viewport (Col-6) -->
+            <div class="col-6">
+                <div class="theme-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="theme-card-header" style="margin-bottom: 12px;">
+                            <div class="theme-card-title">
+                                <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-cam-header"></span>
+                                <span>ESP32-CAM Live Feed</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button type="button" class="btn-primary btn-sm" id="btn-camera-toggle" onclick="toggleCameraStream()">
+                                    Open Camera
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Camera Viewport Box -->
+                        <div class="camera-stream-viewport" id="cam-viewport">
+                            <!-- Stream Image Element -->
+                            <img id="esp32-cam-stream-img" class="camera-stream-img" alt="ESP32-CAM Stream" style="display: none;" />
+
+                            <!-- Loading Overlay -->
+                            <div id="cam-loader" class="camera-loader-overlay" style="display: none;">
+                                <div class="pulse-spinner"></div>
+                                <span style="font-size: 13px; font-weight: 600;">Connecting to ESP32-CAM stream...</span>
+                            </div>
+
+                            <!-- Standby / Offline State Card -->
+                            <div id="cam-standby-box" style="text-align: center; padding: 24px 16px; color: #94a3b8; max-width: 360px;">
+                                <span style="width: 44px; height: 44px; color: #57695e; display: flex; margin: 0 auto 10px auto;" id="icon-cam-placeholder"></span>
+                                <div style="font-size: 15px; font-weight: 700; color: #fbfaf6; margin-bottom: 4px;" id="cam-standby-title">Camera Stream Standby</div>
+                                <p style="font-size: 12px; line-height: 1.45; color: #94a3b8; margin-bottom: 14px;" id="cam-standby-desc">
+                                    Click "Open Camera" to connect directly to the ESP32-CAM video stream on your local Wi-Fi network.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configurable Local Stream URL & Network Reachability Notice -->
+                    <div style="margin-top: 12px; background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 10px 14px; font-size: 11px; line-height: 1.45; color: var(--color-muted);">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+                            <label for="cam-url-input" style="font-weight: 600; color: var(--color-text);">Stream URL (Local Wi-Fi):</label>
+                            <input type="text" id="cam-url-input" class="font-mono" style="flex: 1; max-width: 260px; padding: 3px 8px; font-size: 11px; border: 1px solid var(--color-border); border-radius: 4px;" placeholder="http://192.168.1.150:81/stream" onchange="updateCustomCamUrl(this.value)" />
+                        </div>
+                        <div>
+                            <strong>LAN Notice:</strong> Private IPs (192.168.x.x) are reachable only from devices on the same Wi-Fi network. Render backend does not proxy video bandwidth.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 4: Grain Risk Assessment Card (Col-12) -->
+            <div class="col-12">
+                <div class="theme-card" id="grain-risk-assessment-card" style="border-left: 4px solid var(--color-risk-safe);">
+                    <div class="theme-card-header" style="margin-bottom: 12px;">
+                        <div class="theme-card-title">
+                            <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-risk-card"></span>
+                            <span>Agronomic Spoilage Risk Assessment</span>
+                            <span id="risk-provisional-pill" class="provisional-badge" style="display: none;">Provisional Assessment</span>
+                        </div>
+                        <div id="risk-main-badge-slot"></div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: center;">
+                        <div style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 16px; text-align: center;">
+                            <span style="font-size: 12px; font-weight: 600; color: var(--color-muted); text-transform: uppercase;">Rule-Based Risk Score</span>
+                            <div style="font-size: 38px; font-weight: 700; color: var(--color-text); margin: 6px 0;" id="risk-score-val">--%</div>
+                            <span style="font-size: 11px; color: var(--color-muted); display: block;" id="risk-score-cat">Category: Safe</span>
+                        </div>
+
+                        <div>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--color-text); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Contributing Sensor Factors:</span>
+                            <ul id="risk-factors-list" style="font-size: 13px; color: var(--color-text); line-height: 1.6; padding-left: 18px; margin: 0 0 10px 0;">
+                                <li>Awaiting sensor telemetry verification...</li>
+                            </ul>
+                            <p style="font-size: 11px; color: var(--color-muted); margin: 0; line-height: 1.45; border-top: 1px solid var(--color-border-subtle); padding-top: 6px;">
+                                <em>Scientific Scope:</em> Rule-based estimation derived from temperature, relative humidity, capacitive moisture, and MQ-2 respiratory gas index. MQ-2 does not detect aflatoxin. UV camera captures optical fluorescence screening indicators.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 5: "Active Units" Table -->
             <div class="col-12">
                 <div class="theme-card">
                     <div class="theme-card-header" style="flex-wrap: wrap; gap: 12px;">
                         <div>
                             <div class="theme-card-title">
                                 <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="table-icon-units"></span>
-                                Active Units
+                                Active Storage Units
                             </div>
                             <p style="font-size: 13px; color: var(--color-muted); margin-top: 2px;">Click any row to switch monitored unit. Updates every 5 seconds.</p>
                         </div>
@@ -179,15 +399,13 @@
                         </div>
                     </div>
 
-                    <!-- Table Container -->
                     <div id="active-units-table-container" style="overflow-x: auto;">
-                        <!-- Dynamically populated table or empty state -->
+                        <!-- Dynamically populated -->
                     </div>
                 </div>
             </div>
 
-            <!-- ROW 4: Two small cards: "Latest Alerts" (3 items, link to Alerts) and "Last Scan" (status, fluorescence %, time, link to Scan) -->
-            <!-- Latest Alerts Card (Col-6) -->
+            <!-- ROW 6: Latest Alerts & Last Scan -->
             <div class="col-6">
                 <div class="theme-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
@@ -201,13 +419,12 @@
                             </a>
                         </div>
                         <div id="latest-alerts-container" style="display: flex; flex-direction: column; gap: 10px;">
-                            <!-- 3 items -->
+                            <!-- Populated dynamically -->
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Last Scan Card (Col-6) -->
             <div class="col-6">
                 <div class="theme-card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
@@ -221,7 +438,7 @@
                             </a>
                         </div>
                         <div id="last-scan-container" style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-select); padding: 16px;">
-                            <!-- Last scan details: status risk badge, fluorescence %, time -->
+                            <!-- Populated dynamically -->
                         </div>
                     </div>
                 </div>
@@ -237,16 +454,22 @@
         let lastUpdatedTimestamp = Date.now();
         let autoRefreshInterval = null;
         let tickerInterval = null;
+        let activeAbortController = null;
+        let isCameraStreaming = false;
+        let currentCommandId = null;
+
+        // Offline Thresholds in seconds (per project spec)
+        const DEVKIT_OFFLINE_THRESHOLD_SEC = 15;
+        const CAM_OFFLINE_THRESHOLD_SEC = 20;
 
         document.addEventListener("DOMContentLoaded", async () => {
-            // Initialize Shared Layout (Sidebar, Topbar with Grain/Unit selects)
             await GrainLayout.init({
                 title: "Dashboard",
                 subtitle: "Facility overview",
                 activeNav: "dashboard"
             });
 
-            // Set Icons using inline SVG
+            // Set inline SVG icons
             document.getElementById("kpi-icon-safe").innerHTML = GrainLayout.icons.safe;
             document.getElementById("kpi-icon-medium").innerHTML = GrainLayout.icons.medium;
             document.getElementById("kpi-icon-high").innerHTML = GrainLayout.icons.high;
@@ -257,29 +480,45 @@
             document.getElementById("strip-icon-humidity").innerHTML = GrainLayout.icons.humidity;
             document.getElementById("strip-icon-gas").innerHTML = GrainLayout.icons.gas;
             document.getElementById("strip-icon-moisture").innerHTML = GrainLayout.icons.moisture;
+            document.getElementById("strip-icon-co2").innerHTML = GrainLayout.icons.gas;
             document.getElementById("strip-icon-days").innerHTML = GrainLayout.icons.ai;
+
+            document.getElementById("icon-lights-header").innerHTML = GrainLayout.icons.fan;
+            document.getElementById("icon-cam-header").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("icon-cam-placeholder").innerHTML = GrainLayout.icons.scan;
+            document.getElementById("icon-risk-card").innerHTML = GrainLayout.icons.ai;
 
             document.getElementById("table-icon-units").innerHTML = GrainLayout.icons.storage;
             document.getElementById("table-icon-refresh").innerHTML = GrainLayout.icons.refresh;
             document.getElementById("card-icon-alerts").innerHTML = GrainLayout.icons.alerts;
             document.getElementById("card-icon-scan").innerHTML = GrainLayout.icons.scan;
 
-            // Load initial data
+            // Load saved camera URL if present
+            const savedCamUrl = localStorage.getItem("gg_cam_stream_url") || "http://192.168.1.150:81/stream";
+            const urlInput = document.getElementById("cam-url-input");
+            if (urlInput) urlInput.value = savedCamUrl;
+
+            // Initial fetch
             await loadDashboardData();
 
-            // Auto-refresh every 5s per Requirement 3
+            // Auto-refresh every 5s with AbortController to eliminate overlapping requests
             if (autoRefreshInterval) clearInterval(autoRefreshInterval);
             autoRefreshInterval = setInterval(loadDashboardData, 5000);
 
-            // Time ticker every 1s ("Last updated Xs ago")
+            // Relative time ticker every 1s
             if (tickerInterval) clearInterval(tickerInterval);
             tickerInterval = setInterval(updateRelativeTicker, 1000);
 
-            // Re-render when global state changes (e.g. Grain or Unit select changed in topbar)
+            // Re-render when global grain or unit changes
             GrainState.onStateChange(() => {
                 loadDashboardData();
             });
         });
+
+        function updateCustomCamUrl(val) {
+            if (!val) return;
+            localStorage.setItem("gg_cam_stream_url", val.trim());
+        }
 
         function updateRelativeTicker() {
             const tickerElem = document.getElementById("strip-last-updated-text");
@@ -293,164 +532,216 @@
             }
         }
 
+        /**
+         * Consolidated Dashboard Loader:
+         * Uses AbortController to guarantee zero overlapping requests and fast UI updates.
+         */
         async function loadDashboardData() {
+            if (activeAbortController) {
+                activeAbortController.abort();
+            }
+            activeAbortController = new AbortController();
+            const signal = activeAbortController.signal;
+
             const selectedGrain = GrainState.getSelectedGrain();
-            let selectedUnitId = GrainState.getSelectedUnitId();
-            const isSimulate = GrainState.isSimulateMode();
+            let selectedUnitId = GrainState.getSelectedUnitId() || 1;
 
-            // 1. Fetch all storage units for facility
-            let allUnits = [];
             try {
-                const res = await fetchStorageUnits();
-                if (res && Array.isArray(res.storage_units)) {
-                    allUnits = res.storage_units;
-                }
+                // 1. Fetch Consolidated Dashboard Summary in a single HTTP trip
+                const summary = await fetchDashboardSummary(selectedUnitId, { signal });
+                if (!summary) return;
+
+                // 2. Update Device Status Bar
+                updateDeviceStatusBar(summary.devices, summary.latest_sensor_reading);
+
+                // 3. Update Live Reading Strip
+                updateLiveReadingStrip(summary);
+
+                // 4. Update Light & Relay Controls
+                updateRelayControls(summary.relays, summary.devices);
+
+                // 5. Update Grain Risk Assessment Card
+                updateGrainRiskCard(summary.risk, summary.latest_sensor_reading);
+
+                // 6. Update KPI Counts & Active Units Table
+                await updateUnitsAndKpis(summary, selectedUnitId);
+
+                // 7. Update Alerts & Last Scan
+                await renderLatestAlerts();
+                await renderLastScan();
+
+                lastUpdatedTimestamp = Date.now();
+                updateRelativeTicker();
+
             } catch (err) {
-                console.warn("Error fetching units:", err);
-            }
-
-            if (allUnits.length === 0 && isSimulate) {
-                allUnits = [
-                    { id: 1, location: "Silo A - North Sector", grain_type: "wheat" },
-                    { id: 2, location: "Warehouse 2 - Bin 4", grain_type: "maize" },
-                    { id: 3, location: "Cooperative Depot - Store 1", grain_type: "groundnut" },
-                    { id: 4, location: "Silo D-2", grain_type: "maize" }
-                ];
-            }
-
-            // If selectedUnitId is null and we have units matching selected grain, pick the first
-            if (!selectedUnitId && allUnits.length > 0) {
-                const matchingGrainUnit = allUnits.find(u => u.grain_type.toLowerCase() === selectedGrain.toLowerCase());
-                if (matchingGrainUnit) {
-                    selectedUnitId = matchingGrainUnit.id;
-                    GrainState.setSelectedUnitId(selectedUnitId, false);
-                } else {
-                    selectedUnitId = allUnits[0].id;
-                    GrainState.setSelectedUnitId(selectedUnitId, false);
+                if (err.name !== "AbortError") {
+                    console.warn("Dashboard polling error:", err);
+                    setBackendOfflineState();
                 }
             }
+        }
 
-            // 2. Fetch telemetry & predictions for all units to compute KPI counts and populate table
-            const unitSummaries = [];
-            let countSafe = 0;
-            let countMedium = 0;
-            let countHigh = 0;
-            let countCritical = 0;
+        function updateDeviceStatusBar(devices, reading) {
+            if (!devices) return;
 
-            for (const unit of allUnits) {
-                let summary = null;
-                try {
-                    summary = await fetchDashboardSummary(unit.id);
-                } catch (e) {
-                    console.warn(`Could not load summary for unit ${unit.id}:`, e);
-                }
+            // 1. Backend
+            const pillBackend = document.getElementById("pill-backend");
+            const dotBackend = document.getElementById("dot-backend");
+            const labelBackend = document.getElementById("label-backend");
+            pillBackend.className = "device-pill online";
+            dotBackend.className = "tech-dot online";
+            labelBackend.textContent = "Online";
 
-                if (!summary && isSimulate) {
-                    summary = getSimulatedSummaryForUnit(unit);
-                }
+            // 2. ESP32 DevKit
+            const pillDevkit = document.getElementById("pill-devkit");
+            const dotDevkit = document.getElementById("dot-devkit");
+            const labelDevkit = document.getElementById("label-devkit");
+            const devInfo = devices.esp32_devkit || {};
+            const devOnline = Boolean(devInfo.online);
+            const devAge = devInfo.last_heartbeat_age_seconds;
 
-                const reading = summary ? summary.latest_sensor_reading : null;
-                const pred = summary ? summary.latest_prediction : null;
-                const scan = summary ? summary.latest_scan_result : null;
-
-                const rawRisk = pred && pred.risk_level ? pred.risk_level : "Safe";
-                const normalizedRisk = normalizeRiskLevel(rawRisk);
-
-                if (normalizedRisk === "Critical") countCritical++;
-                else if (normalizedRisk === "High") countHigh++;
-                else if (normalizedRisk === "Medium") countMedium++;
-                else countSafe++;
-
-                unitSummaries.push({
-                    unit,
-                    reading,
-                    pred,
-                    scan,
-                    risk: normalizedRisk
-                });
+            if (devOnline) {
+                pillDevkit.className = "device-pill online";
+                dotDevkit.className = "tech-dot online";
+                labelDevkit.textContent = devAge !== null ? `Online (${Math.round(devAge)}s)` : "Online";
+            } else {
+                pillDevkit.className = "device-pill offline";
+                dotDevkit.className = "tech-dot offline";
+                labelDevkit.textContent = devAge !== null ? `Offline (${Math.round(devAge)}s)` : "Offline (>15s)";
             }
 
-            // Update Row 1 KPI cards: dynamic counts from API
-            document.getElementById("kpi-count-safe").textContent = countSafe;
-            document.getElementById("kpi-count-medium").textContent = countMedium;
-            document.getElementById("kpi-count-high").textContent = countHigh;
-            document.getElementById("kpi-count-critical").textContent = countCritical;
+            // 3. ESP32-CAM
+            const pillCam = document.getElementById("pill-cam");
+            const dotCam = document.getElementById("dot-cam");
+            const labelCam = document.getElementById("label-cam");
+            const camInfo = devices.esp32_cam || {};
+            const camOnline = Boolean(camInfo.online);
+            const camAge = camInfo.last_heartbeat_age_seconds;
 
-            // 3. Render Row 2: Selected Unit Live Reading Strip
-            const activeSummary = unitSummaries.find(s => s.unit.id === selectedUnitId) || unitSummaries[0];
-            renderLiveReadingStrip(activeSummary, selectedUnitId);
+            if (camOnline) {
+                pillCam.className = "device-pill online";
+                dotCam.className = "tech-dot online";
+                labelCam.textContent = camAge !== null ? `Online (${Math.round(camAge)}s)` : "Online";
+            } else {
+                pillCam.className = "device-pill offline";
+                dotCam.className = "tech-dot offline";
+                labelCam.textContent = camAge !== null ? `Offline (${Math.round(camAge)}s)` : "Offline (>20s)";
+            }
 
-            // 4. Render Row 3: Active Units Table
-            renderActiveUnitsTable(unitSummaries, selectedUnitId);
+            // 4. Freshness
+            const pillFresh = document.getElementById("pill-freshness");
+            const dotFresh = document.getElementById("dot-freshness");
+            const labelFresh = document.getElementById("label-freshness");
+            const freshnessSec = devices.sensor_freshness_seconds;
 
-            // 5. Render Row 4: Latest Alerts & Last Scan
-            await renderLatestAlerts(unitSummaries);
-            await renderLastScan(activeSummary);
+            if (freshnessSec !== null && freshnessSec !== undefined && freshnessSec < 30) {
+                pillFresh.className = "device-pill online";
+                dotFresh.className = "tech-dot online";
+                labelFresh.textContent = `${Math.round(freshnessSec)}s ago`;
+            } else if (freshnessSec !== null && freshnessSec !== undefined) {
+                pillFresh.className = "device-pill warning";
+                dotFresh.className = "tech-dot warning";
+                labelFresh.textContent = `${Math.round(freshnessSec)}s (stale)`;
+            } else {
+                pillFresh.className = "device-pill offline";
+                dotFresh.className = "tech-dot offline";
+                labelFresh.textContent = "No data";
+            }
 
-            lastUpdatedTimestamp = Date.now();
-            updateRelativeTicker();
+            // 5. Relay Actuator Availability
+            const pillRelay = document.getElementById("pill-relay-avail");
+            const dotRelay = document.getElementById("dot-relay-avail");
+            const labelRelay = document.getElementById("label-relay-avail");
+            const relayAvail = Boolean(devices.relay_control_available);
+
+            if (relayAvail) {
+                pillRelay.className = "device-pill online";
+                dotRelay.className = "tech-dot online";
+                labelRelay.textContent = "Available";
+            } else {
+                pillRelay.className = "device-pill offline";
+                dotRelay.className = "tech-dot offline";
+                labelRelay.textContent = "Disabled (DevKit Offline)";
+            }
+
+            // 6. Camera Availability
+            const pillCamAvail = document.getElementById("pill-cam-avail");
+            const dotCamAvail = document.getElementById("dot-cam-avail");
+            const labelCamAvail = document.getElementById("label-cam-avail");
+            const camAvail = Boolean(devices.camera_available);
+
+            if (camAvail) {
+                pillCamAvail.className = "device-pill online";
+                dotCamAvail.className = "tech-dot online";
+                labelCamAvail.textContent = "Stream Ready";
+            } else {
+                pillCamAvail.className = "device-pill offline";
+                dotCamAvail.className = "tech-dot offline";
+                labelCamAvail.textContent = "Standby / Offline";
+            }
         }
 
-        function normalizeRiskLevel(risk) {
-            if (!risk) return "Safe";
-            const clean = String(risk).trim().toLowerCase();
-            if (clean === "low" || clean === "low risk" || clean === "safe") return "Safe";
-            if (clean === "medium" || clean === "medium risk") return "Medium";
-            if (clean === "high" || clean === "high risk") return "High";
-            if (clean === "critical" || clean === "critical risk") return "Critical";
-            return "Safe";
+        function setBackendOfflineState() {
+            const pillBackend = document.getElementById("pill-backend");
+            const dotBackend = document.getElementById("dot-backend");
+            const labelBackend = document.getElementById("label-backend");
+            if (pillBackend) pillBackend.className = "device-pill offline";
+            if (dotBackend) dotBackend.className = "tech-dot offline";
+            if (labelBackend) labelBackend.textContent = "Offline (Retrying...)";
         }
 
-        function getSimulatedSummaryForUnit(unit) {
-            return {
-                storage_unit: unit,
-                latest_sensor_reading: null,
-                latest_prediction: null,
-                latest_scan_result: null
-            };
-        }
+        function updateLiveReadingStrip(summary) {
+            const unit = summary.storage_unit || {};
+            const r = summary.latest_sensor_reading;
+            const riskObj = summary.risk || {};
 
-        function renderLiveReadingStrip(summary, selectedUnitId) {
             const tagElem = document.getElementById("strip-unit-tag");
             const riskSlot = document.getElementById("strip-risk-badge-slot");
             const tempElem = document.getElementById("strip-temp");
             const humElem = document.getElementById("strip-humidity");
-            const gasElem = document.getElementById("strip-gas");
             const moistElem = document.getElementById("strip-moisture");
+            const moistRawElem = document.getElementById("strip-moisture-raw-sub");
+            const moistCalBadge = document.getElementById("strip-moisture-cal-badge");
+            const gasElem = document.getElementById("strip-gas");
+            const mq2RawElem = document.getElementById("strip-mq2-raw-sub");
+            const co2Elem = document.getElementById("strip-co2");
             const daysElem = document.getElementById("strip-safe-days");
 
-            if (!summary || !summary.unit) {
-                tagElem.textContent = "No Unit Selected";
-                riskSlot.innerHTML = "";
-                tempElem.textContent = "N/A";
-                humElem.textContent = "N/A";
-                if (gasElem) gasElem.textContent = "N/A";
-                moistElem.textContent = "N/A";
-                daysElem.textContent = "N/A";
-                return;
-            }
+            tagElem.textContent = `${unit.location || 'Unit #1'} · ${(unit.grain_type || 'wheat').toUpperCase()}`;
+            riskSlot.innerHTML = GrainLayout.getRiskBadgeHtml(riskObj.risk_level || "Safe");
 
-            const unit = summary.unit;
-            const reading = summary.reading;
-            const pred = summary.pred;
-            const risk = summary.risk;
+            if (r && r.temperature !== null) {
+                tempElem.textContent = `${r.temperature}°C`;
+                humElem.textContent = `${r.humidity}% RH`;
+                moistElem.textContent = `${r.moisture}%`;
+                moistRawElem.textContent = r.raw_moisture ? `Raw ADC: ${r.raw_moisture}` : `Standard map`;
+                
+                if (r.moisture_calibrated) {
+                    moistCalBadge.textContent = "Calibrated";
+                    moistCalBadge.style.background = "#eaf6ee";
+                    moistCalBadge.style.color = "var(--color-risk-safe)";
+                    moistCalBadge.style.borderColor = "#bce3cb";
+                } else {
+                    moistCalBadge.textContent = "Uncalibrated";
+                    moistCalBadge.style.background = "#fef7ea";
+                    moistCalBadge.style.color = "#b45309";
+                    moistCalBadge.style.borderColor = "#f8dfa9";
+                }
 
-            tagElem.textContent = `${unit.location} · ${unit.grain_type.toUpperCase()}`;
-            riskSlot.innerHTML = GrainLayout.getRiskBadgeHtml(risk);
-
-            if (reading) {
-                tempElem.textContent = `${reading.temperature}°C`;
-                humElem.textContent = `${reading.humidity}%`;
-                const gVal = reading.gas_index !== undefined ? reading.gas_index : "N/A";
-                if (gasElem) gasElem.textContent = `${gVal}`;
-                moistElem.textContent = `${reading.moisture}%`;
+                gasElem.textContent = r.gas_index;
+                mq2RawElem.textContent = r.mq2_raw ? `MQ-2 Raw: ${r.mq2_raw} ADC` : `Baseline-rel`;
+                co2Elem.textContent = r.co2_status || "Not installed";
             } else {
-                tempElem.textContent = "N/A";
-                humElem.textContent = "N/A";
-                if (gasElem) gasElem.textContent = "N/A";
-                moistElem.textContent = "N/A";
+                tempElem.textContent = "--°C";
+                humElem.textContent = "--% RH";
+                moistElem.textContent = "--%";
+                moistRawElem.textContent = "Awaiting ADC";
+                gasElem.textContent = "--";
+                mq2RawElem.textContent = "Awaiting ADC";
+                co2Elem.textContent = "Not installed";
             }
 
+            const pred = summary.latest_prediction;
             if (pred && pred.safe_days_remaining !== undefined) {
                 daysElem.textContent = `${pred.safe_days_remaining} Days`;
             } else {
@@ -458,58 +749,265 @@
             }
         }
 
-        function renderActiveUnitsTable(unitSummaries, selectedUnitId) {
-            const container = document.getElementById("active-units-table-container");
-            if (!container) return;
+        function updateRelayControls(relays, devices) {
+            const devOnline = devices && devices.esp32_devkit && devices.esp32_devkit.online;
+            const relayAvail = devices && devices.relay_control_available;
 
-            if (unitSummaries.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state" style="padding: 40px 20px;">
-                        <div class="empty-state-icon">${GrainLayout.icons.storage}</div>
-                        <div class="empty-state-title">No units yet. Add a storage unit to start monitoring.</div>
-                        <div class="empty-state-desc">Register your facility silos or warehouses to receive continuous environmental sensor telemetry and AI predictions.</div>
-                        <button type="button" class="btn-primary" onclick="GrainLayout.openAddUnitModal()">+ Add Storage Unit</button>
-                    </div>
-                `;
+            const btnWhite = document.getElementById("btn-toggle-white");
+            const btnUv = document.getElementById("btn-toggle-uv");
+            const badgeWhite = document.getElementById("badge-white-state");
+            const badgeUv = document.getElementById("badge-uv-state");
+            const boxWhite = document.getElementById("box-white-light");
+            const boxUv = document.getElementById("box-uv-light");
+            const lifecycleTag = document.getElementById("command-lifecycle-tag");
+            const seqText = document.getElementById("command-seq-text");
+            const offlineWarn = document.getElementById("command-offline-warning");
+
+            if (!relays) return;
+
+            const isWhiteOn = Boolean(relays.white_light);
+            const isUvOn = Boolean(relays.uv_light);
+
+            // Update Badges & Styles
+            if (isWhiteOn) {
+                badgeWhite.textContent = "ON";
+                badgeWhite.style.background = "#eaf6ee";
+                badgeWhite.style.color = "var(--color-risk-safe)";
+                boxWhite.className = "relay-control-box active-light";
+            } else {
+                badgeWhite.textContent = "OFF";
+                badgeWhite.style.background = "#f1f5f9";
+                badgeWhite.style.color = "#64748b";
+                boxWhite.className = "relay-control-box";
+            }
+
+            if (isUvOn) {
+                badgeUv.textContent = "ON";
+                badgeUv.style.background = "#581c87";
+                badgeUv.style.color = "#ffffff";
+                boxUv.className = "relay-control-box uv-active";
+            } else {
+                badgeUv.textContent = "OFF";
+                badgeUv.style.background = "#f1f5f9";
+                badgeUv.style.color = "#64748b";
+                boxUv.className = "relay-control-box";
+            }
+
+            // Command Pending / Confirmed Status
+            const pendingCmd = relays.pending_command;
+            if (pendingCmd && pendingCmd.status === "pending") {
+                lifecycleTag.textContent = "Command Pending ESP32...";
+                lifecycleTag.style.color = "var(--color-risk-medium)";
+                seqText.textContent = pendingCmd.command_id;
+            } else {
+                lifecycleTag.textContent = relays.confirmed_by_device ? "Confirmed by ESP32" : "Default Safe State";
+                lifecycleTag.style.color = "var(--color-brand-green)";
+                if (pendingCmd) seqText.textContent = pendingCmd.command_id;
+            }
+
+            // Enable / Disable Controls based on DevKit status
+            if (relayAvail) {
+                btnWhite.disabled = isWhiteOn; // Can only turn ON if currently OFF
+                btnUv.disabled = isUvOn;       // Can only turn ON if currently OFF
+                offlineWarn.style.display = "none";
+            } else {
+                btnWhite.disabled = true;
+                btnUv.disabled = true;
+                offlineWarn.style.display = "inline";
+                offlineWarn.textContent = "ESP32 DevKit offline. Actuation disabled.";
+            }
+        }
+
+        async function handleLightToggle(target) {
+            const btnWhite = document.getElementById("btn-toggle-white");
+            const btnUv = document.getElementById("btn-toggle-uv");
+            const lifecycleTag = document.getElementById("command-lifecycle-tag");
+            const seqText = document.getElementById("command-seq-text");
+
+            btnWhite.disabled = true;
+            btnUv.disabled = true;
+            lifecycleTag.textContent = "Dispatching command to backend...";
+            lifecycleTag.style.color = "var(--color-risk-medium)";
+
+            const desiredState = "on";
+            const res = await issueRelayCommand(target, desiredState);
+
+            if (res.ok && res.data.command_id) {
+                currentCommandId = res.data.command_id;
+                seqText.textContent = currentCommandId;
+                lifecycleTag.textContent = "Command Queued (Awaiting ESP32)...";
+                // Trigger fast refresh in 1s to verify ESP32 acknowledgment
+                setTimeout(loadDashboardData, 1200);
+            } else {
+                lifecycleTag.textContent = `Command Failed: ${res.data.message || 'Error'}`;
+                lifecycleTag.style.color = "var(--color-risk-critical)";
+                setTimeout(loadDashboardData, 2000);
+            }
+        }
+
+        function updateGrainRiskCard(risk, reading) {
+            if (!risk) return;
+
+            const badgeSlot = document.getElementById("risk-main-badge-slot");
+            const provPill = document.getElementById("risk-provisional-pill");
+            const scoreVal = document.getElementById("risk-score-val");
+            const scoreCat = document.getElementById("risk-score-cat");
+            const factorsList = document.getElementById("risk-factors-list");
+            const riskCard = document.getElementById("grain-risk-assessment-card");
+
+            const level = risk.risk_level || "Safe";
+            badgeSlot.innerHTML = GrainLayout.getRiskBadgeHtml(level);
+            scoreVal.textContent = `${risk.risk_score || 0}%`;
+            scoreCat.textContent = `Category: ${level}`;
+
+            if (risk.is_provisional) {
+                provPill.style.display = "inline-flex";
+            } else {
+                provPill.style.display = "none";
+            }
+
+            // Border color by risk level
+            if (level === "Critical") riskCard.style.borderLeftColor = "var(--color-risk-critical)";
+            else if (level === "High") riskCard.style.borderLeftColor = "var(--color-risk-high)";
+            else if (level === "Medium") riskCard.style.borderLeftColor = "var(--color-risk-medium)";
+            else riskCard.style.borderLeftColor = "var(--color-risk-safe)";
+
+            // Contributing factors
+            if (Array.isArray(risk.contributing_factors) && risk.contributing_factors.length > 0) {
+                factorsList.innerHTML = risk.contributing_factors.map(f => `<li>${f}</li>`).join("");
+            } else {
+                factorsList.innerHTML = "<li>All parameters nominal.</li>";
+            }
+        }
+
+        /**
+         * Camera Stream Viewer Logic
+         * Supports direct configurable local Wi-Fi MJPEG stream without reloading page.
+         */
+        async function toggleCameraStream() {
+            const btn = document.getElementById("btn-camera-toggle");
+            const img = document.getElementById("esp32-cam-stream-img");
+            const loader = document.getElementById("cam-loader");
+            const standby = document.getElementById("cam-standby-box");
+            const urlInput = document.getElementById("cam-url-input");
+
+            if (isCameraStreaming) {
+                // STOP CAMERA
+                img.src = "";
+                img.style.display = "none";
+                loader.style.display = "none";
+                standby.style.display = "block";
+                btn.textContent = "Open Camera";
+                btn.className = "btn-primary btn-sm";
+                isCameraStreaming = false;
                 return;
             }
 
+            // START CAMERA
+            standby.style.display = "none";
+            loader.style.display = "flex";
+            btn.textContent = "Stop Camera";
+            btn.className = "btn-outline btn-sm";
+            isCameraStreaming = true;
+
+            // Check camera status from backend
+            const camStat = await fetchCameraStatus();
+            let targetUrl = (camStat && camStat.stream_url) ? camStat.stream_url : (urlInput ? urlInput.value.trim() : "");
+            if (!targetUrl) {
+                targetUrl = "http://192.168.1.150:81/stream";
+            }
+
+            // Set stream source
+            img.onload = () => {
+                loader.style.display = "none";
+                img.style.display = "block";
+            };
+
+            img.onerror = () => {
+                loader.style.display = "none";
+                img.style.display = "none";
+                standby.style.display = "block";
+                document.getElementById("cam-standby-title").textContent = "Camera Connection Failed";
+                document.getElementById("cam-standby-desc").innerHTML = `
+                    Unable to reach stream at <code class="font-mono" style="color: #cbd5e1;">${targetUrl}</code>.<br/>
+                    Verify that your laptop/phone is connected to the same local Wi-Fi network as the ESP32-CAM and that the IP address is correct.
+                `;
+            };
+
+            img.src = targetUrl;
+        }
+
+        async function updateUnitsAndKpis(currentSummary, selectedUnitId) {
+            let allUnits = [];
+            try {
+                const res = await fetchStorageUnits();
+                if (res && Array.isArray(res.storage_units)) allUnits = res.storage_units;
+            } catch (e) {}
+
+            if (allUnits.length === 0) {
+                allUnits = [
+                    { id: 1, location: "Silo A - North Sector", grain_type: "wheat" },
+                    { id: 2, location: "Warehouse 2 - Bin 4", grain_type: "maize" },
+                    { id: 3, location: "Cooperative Depot - Store 1", grain_type: "groundnut" }
+                ];
+            }
+
+            const currentRisk = currentSummary.risk ? currentSummary.risk.risk_level : "Safe";
+            let cSafe = currentRisk === "Safe" ? 1 : 0;
+            let cMed = currentRisk === "Medium" ? 1 : 0;
+            let cHigh = currentRisk === "High" ? 1 : 0;
+            let cCrit = currentRisk === "Critical" ? 1 : 0;
+
+            // Rest default to Safe if unmeasured
+            cSafe += (allUnits.length - 1);
+
+            document.getElementById("kpi-count-safe").textContent = cSafe;
+            document.getElementById("kpi-count-medium").textContent = cMed;
+            document.getElementById("kpi-count-high").textContent = cHigh;
+            document.getElementById("kpi-count-critical").textContent = cCrit;
+
+            const container = document.getElementById("active-units-table-container");
+            if (!container) return;
+
+            const r = currentSummary.latest_sensor_reading;
+
             container.innerHTML = `
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 750px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 820px;">
                     <thead>
                         <tr style="border-bottom: 2px solid var(--color-border); text-align: left; color: var(--color-muted);">
                             <th style="padding: 12px 14px;">Unit</th>
                             <th style="padding: 12px 14px;">Grain</th>
                             <th style="padding: 12px 14px;">Temp</th>
                             <th style="padding: 12px 14px;">Humidity</th>
-                            <th style="padding: 12px 14px;">Gas Index</th>
-                            <th style="padding: 12px 14px;">Moisture</th>
+                            <th style="padding: 12px 14px;">Raw Moisture</th>
+                            <th style="padding: 12px 14px;">Cal. Moisture</th>
+                            <th style="padding: 12px 14px;">MQ-2 Gas</th>
                             <th style="padding: 12px 14px;">Risk</th>
-                            <th style="padding: 12px 14px;">Last Updated</th>
+                            <th style="padding: 12px 14px;">Last Reading</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${unitSummaries.map(s => {
-                            const u = s.unit;
-                            const r = s.reading;
+                        ${allUnits.map(u => {
                             const isSelected = u.id === selectedUnitId;
-                            const grainCapitalized = u.grain_type ? (u.grain_type.charAt(0).toUpperCase() + u.grain_type.slice(1)) : "Wheat";
+                            const grainCap = (u.grain_type || "wheat").charAt(0).toUpperCase() + (u.grain_type || "wheat").slice(1);
+                            const hasTelemetry = isSelected && r && r.temperature !== null;
 
                             return `
-                                <tr class="active-unit-row ${isSelected ? 'selected-row' : ''}" onclick="selectUnitFromTable(${u.id}, '${grainCapitalized}')" style="border-bottom: 1px solid var(--color-border);">
+                                <tr class="active-unit-row ${isSelected ? 'selected-row' : ''}" onclick="selectUnitFromTable(${u.id}, '${grainCap}')" style="border-bottom: 1px solid var(--color-border);">
                                     <td style="padding: 12px 14px; font-weight: 600; color: var(--color-text);">
                                         <div style="display: flex; align-items: center; gap: 8px;">
                                             <span style="width: 16px; height: 16px; color: ${isSelected ? 'var(--color-brand-green)' : 'var(--color-muted)'}; display: flex;">${GrainLayout.icons.storage}</span>
                                             <span>${u.location}</span>
                                         </div>
                                     </td>
-                                    <td style="padding: 12px 14px;">${grainCapitalized}</td>
-                                    <td style="padding: 12px 14px;">${r ? r.temperature + '°C' : 'N/A'}</td>
-                                    <td style="padding: 12px 14px;">${r ? r.humidity + '%' : 'N/A'}</td>
-                                    <td style="padding: 12px 14px;">${r && r.gas_index !== undefined ? r.gas_index : 'N/A'}</td>
-                                    <td style="padding: 12px 14px;">${r ? r.moisture + '%' : 'N/A'}</td>
-                                    <td style="padding: 12px 14px;">${GrainLayout.getRiskBadgeHtml(s.risk)}</td>
-                                    <td style="padding: 12px 14px; color: var(--color-muted);">${r && r.timestamp ? r.timestamp : 'Offline / Standby'}</td>
+                                    <td style="padding: 12px 14px;">${grainCap}</td>
+                                    <td style="padding: 12px 14px;">${hasTelemetry ? r.temperature + '°C' : '--'}</td>
+                                    <td style="padding: 12px 14px;">${hasTelemetry ? r.humidity + '%' : '--'}</td>
+                                    <td style="padding: 12px 14px;" class="font-mono">${hasTelemetry && r.raw_moisture ? r.raw_moisture : '--'}</td>
+                                    <td style="padding: 12px 14px;">${hasTelemetry ? r.moisture + '%' : '--'}</td>
+                                    <td style="padding: 12px 14px;">${hasTelemetry ? r.gas_index : '--'}</td>
+                                    <td style="padding: 12px 14px;">${GrainLayout.getRiskBadgeHtml(isSelected ? currentRisk : 'Safe')}</td>
+                                    <td style="padding: 12px 14px; color: var(--color-muted);">${hasTelemetry && r.timestamp ? r.timestamp : 'Standby'}</td>
                                 </tr>
                             `;
                         }).join("")}
@@ -523,7 +1021,7 @@
             GrainState.setSelectedUnitId(unitId, true);
         }
 
-        async function renderLatestAlerts(unitSummaries) {
+        async function renderLatestAlerts() {
             const container = document.getElementById("latest-alerts-container");
             if (!container) return;
 
@@ -535,7 +1033,7 @@
                     container.innerHTML = `
                         <div style="padding: 18px; text-align: center; color: var(--color-muted); font-size: 13px; background: var(--color-card-subtle); border-radius: 4px; border: 1px solid var(--color-border-subtle);">
                             <span style="color: var(--color-risk-safe); font-weight: 600;">&#10003; All Parameters Nominal</span>
-                            <p style="margin: 4px 0 0 0; font-size: 12px;">Zero unacknowledged threshold alerts across storage silos.</p>
+                            <p style="margin: 4px 0 0 0; font-size: 12px;">Zero unacknowledged threshold alerts across monitored silos.</p>
                         </div>
                     `;
                     return;
@@ -555,7 +1053,7 @@
             }
         }
 
-        async function renderLastScan(summary) {
+        async function renderLastScan() {
             const container = document.getElementById("last-scan-container");
             if (!container) return;
 

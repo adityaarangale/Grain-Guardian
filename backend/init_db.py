@@ -42,13 +42,21 @@ def init_db(db_path=None):
     
     # Migrations for existing databases: ensure scan_results columns exist
     cursor.execute("PRAGMA table_info(scan_results)")
-    existing_cols = [row[1] for row in cursor.fetchall()]
-    if "mask_path" not in existing_cols:
+    existing_scan_cols = [row[1] for row in cursor.fetchall()]
+    if "mask_path" not in existing_scan_cols:
         cursor.execute("ALTER TABLE scan_results ADD COLUMN mask_path TEXT")
-    if "fluorescence_area_pct" not in existing_cols:
+    if "fluorescence_area_pct" not in existing_scan_cols:
         cursor.execute("ALTER TABLE scan_results ADD COLUMN fluorescence_area_pct REAL DEFAULT 0.0")
-    if "screening_status" not in existing_cols:
+    if "screening_status" not in existing_scan_cols:
         cursor.execute("ALTER TABLE scan_results ADD COLUMN screening_status TEXT DEFAULT 'Clear'")
+
+    # Migrations for sensor_readings: raw_moisture and mq2_raw
+    cursor.execute("PRAGMA table_info(sensor_readings)")
+    existing_sensor_cols = [row[1] for row in cursor.fetchall()]
+    if "raw_moisture" not in existing_sensor_cols:
+        cursor.execute("ALTER TABLE sensor_readings ADD COLUMN raw_moisture INTEGER")
+    if "mq2_raw" not in existing_sensor_cols:
+        cursor.execute("ALTER TABLE sensor_readings ADD COLUMN mq2_raw INTEGER")
 
     conn.commit()
     conn.close()
