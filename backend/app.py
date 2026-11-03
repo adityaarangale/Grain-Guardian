@@ -1667,6 +1667,18 @@ def get_dashboard_summary(storage_unit_id=None):
             # Warm in-memory cache
             RUNTIME_STATE["latest_sensor_data"][storage_unit_id] = r_dict
 
+    # Resilient fallback: If requested unit has no reading, use live reading from active ESP32 node
+    if not reading:
+        for uid, cr in RUNTIME_STATE["latest_sensor_data"].items():
+            if cr:
+                reading = dict(cr)
+                break
+        if not reading:
+            cursor.execute("SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT 1")
+            any_row = cursor.fetchone()
+            if any_row:
+                reading = dict(any_row)
+
     # Evaluate device states
     esp_info = RUNTIME_STATE["devices"]["esp32-devkit"]
     cam_info = RUNTIME_STATE["devices"]["esp32-cam"]

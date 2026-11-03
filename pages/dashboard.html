@@ -570,11 +570,15 @@
                 updateGrainRiskCard(summary.risk, summary.latest_sensor_reading);
 
                 // 6. Update KPI Counts & Active Units Table
-                await updateUnitsAndKpis(summary, selectedUnitId);
+                try {
+                    await updateUnitsAndKpis(summary, selectedUnitId);
+                } catch (e) { console.warn("KPI update error:", e); }
 
                 // 7. Update Alerts & Last Scan
-                await renderLatestAlerts();
-                await renderLastScan();
+                try {
+                    await renderLatestAlerts();
+                    await renderLastScan();
+                } catch (e) { console.warn("Alerts/scan update error:", e); }
 
                 lastUpdatedTimestamp = Date.now();
                 updateRelativeTicker();

@@ -14,8 +14,13 @@ const API_BASE_URL = (function () {
         try {
             const stored = localStorage.getItem("gg_api_url");
             if (stored) {
-                let u = stored.trim().replace(/\/+$/, "");
-                return u.endsWith("/api") ? u : `${u}/api`;
+                // If on GitHub Pages, automatically clear stale localhost overrides
+                if (window.location.hostname.includes("github.io") && stored.includes("localhost")) {
+                    localStorage.removeItem("gg_api_url");
+                } else {
+                    let u = stored.trim().replace(/\/+$/, "");
+                    return u.endsWith("/api") ? u : `${u}/api`;
+                }
             }
         } catch (e) { }
 
