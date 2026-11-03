@@ -79,15 +79,23 @@ void setLights(bool whiteOn, bool uvOn) {
     digitalWrite(RELAY_WHITE_LIGHT_PIN, RELAY_STATE_OFF);
     currentWhiteLight = false;
 
-    // 2. Turn ON UV Light
+    // Break-before-make safety interlock
+    delay(50);
+
+    // 2. Turn ON UV Light (drives both GPIO 27 and GPIO 25 to guarantee actuation)
     digitalWrite(RELAY_UV_LIGHT_PIN, RELAY_STATE_ON);
+    digitalWrite(RELAY_UV_LIGHT_PIN_ALT, RELAY_STATE_ON);
     currentUvLight = true;
-    Serial.println("[ACTUATOR] Relays Switched: White = OFF, UV = ON");
+    Serial.println("[ACTUATOR] Relays Switched: White = OFF, UV = ON (GPIO 27 & 25 active)");
     triggerLcdAlert("UV LIGHT: ON");
   } else {
-    // 1. Immediately turn OFF UV Light
+    // 1. Immediately turn OFF UV Light (both GPIO 27 and GPIO 25)
     digitalWrite(RELAY_UV_LIGHT_PIN, RELAY_STATE_OFF);
+    digitalWrite(RELAY_UV_LIGHT_PIN_ALT, RELAY_STATE_OFF);
     currentUvLight = false;
+
+    // Break-before-make pause
+    delay(50);
 
     // 2. Restore White Light ON
     digitalWrite(RELAY_WHITE_LIGHT_PIN, RELAY_STATE_ON);
@@ -343,15 +351,17 @@ void setup() {
   // 1. Initialize Relays (Default Safe State: White Light ON, UV Light OFF)
   pinMode(RELAY_WHITE_LIGHT_PIN, OUTPUT);
   pinMode(RELAY_UV_LIGHT_PIN, OUTPUT);
+  pinMode(RELAY_UV_LIGHT_PIN_ALT, OUTPUT);
 
-  // Always force UV to OFF after reset
+  // Always force UV to OFF after reset (both GPIO 27 and 25)
   digitalWrite(RELAY_UV_LIGHT_PIN, RELAY_STATE_OFF);
+  digitalWrite(RELAY_UV_LIGHT_PIN_ALT, RELAY_STATE_OFF);
   currentUvLight = false;
 
   // Restore White Light to ON
   digitalWrite(RELAY_WHITE_LIGHT_PIN, RELAY_STATE_ON);
   currentWhiteLight = true;
-  Serial.println("[Relays] Initialized in Safe State: White ON, UV OFF.");
+  Serial.println("[Relays] Initialized in Safe State: White ON, UV OFF (Pins 27 & 25 configured).");
 
   // 2. Initialize I2C LCD Display
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);

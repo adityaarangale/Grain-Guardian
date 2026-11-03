@@ -49,8 +49,9 @@
 #define MOISTURE_ANALOG_PIN     35  // Capacitive Grain Moisture Probe V1.2 (ADC1_CH7)
 
 // 2-Channel Relay Actuators (Hardware Interlocked)
-#define RELAY_WHITE_LIGHT_PIN   26  // Relay Channel 1: White Chamber Light
-#define RELAY_UV_LIGHT_PIN      25  // Relay Channel 2: 365nm UV Fluorescence Light
+#define RELAY_WHITE_LIGHT_PIN   26  // Relay Channel 1: White Chamber Light (IN1)
+#define RELAY_UV_LIGHT_PIN      27  // Relay Channel 2: 365nm UV Light (IN2 - Primary Pin 27)
+#define RELAY_UV_LIGHT_PIN_ALT  25  // Relay Channel 2: 365nm UV Light (IN2 - Alternate Pin 25)
 
 // Relay Logic: Most 2-channel 5V relay modules are Active LOW (LOW = ON / Closed, HIGH = OFF / Open)
 #define RELAY_ACTIVE_LOW        true

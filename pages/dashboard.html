@@ -628,6 +628,14 @@
                 labelCam.textContent = camAge !== null ? `Offline (${Math.round(camAge)}s)` : "Offline (>20s)";
             }
 
+            // Auto-populate detected stream URL from backend heartbeat
+            if (camInfo.stream_url) {
+                const urlInput = document.getElementById("cam-url-input");
+                if (urlInput && (!urlInput.value || urlInput.value.includes("192.168.1.150"))) {
+                    urlInput.value = camInfo.stream_url;
+                }
+            }
+
             // 4. Freshness
             const pillFresh = document.getElementById("pill-freshness");
             const dotFresh = document.getElementById("dot-freshness");
@@ -927,10 +935,23 @@
                 loader.style.display = "none";
                 img.style.display = "none";
                 standby.style.display = "block";
-                document.getElementById("cam-standby-title").textContent = "Camera Connection Failed";
+                document.getElementById("cam-standby-title").textContent = "Camera Stream Security Notice";
                 document.getElementById("cam-standby-desc").innerHTML = `
-                    Unable to reach stream at <code class="font-mono" style="color: #cbd5e1;">${targetUrl}</code>.<br/>
-                    Verify that your laptop/phone is connected to the same local Wi-Fi network as the ESP32-CAM and that the IP address is correct.
+                    <div style="margin-bottom: 8px; color: #f8fafc; font-size: 13px;">
+                        Stream target: <code class="font-mono" style="color: #6ee7b7; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px;">${targetUrl}</code>
+                    </div>
+                    <div style="margin: 12px 0;">
+                        <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 8px 16px;">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
+                            Open Live Stream in New Tab
+                        </a>
+                    </div>
+                    <div style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 10px; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 6px;">
+                        <strong>Why is this blocked inside the page?</strong><br/>
+                        GitHub Pages runs on <code>HTTPS</code>, which blocks local Wi-Fi <code>HTTP</code> camera feeds by default.<br/>
+                        &bull; <em>Instant view:</em> Click the button above to view live in a new tab.<br/>
+                        &bull; <em>To view inside this webpage:</em> In Chrome/Edge, click the tune/padlock icon next to the URL &rarr; <strong>Site settings</strong> &rarr; <strong>Insecure content</strong> &rarr; <strong>Allow</strong>.
+                    </div>
                 `;
             };
 
