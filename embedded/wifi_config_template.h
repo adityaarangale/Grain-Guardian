@@ -4,7 +4,7 @@
 // Copy this file to 'wifi_config.h' and fill in your network credentials.
 // Do NOT commit 'wifi_config.h' with real credentials to version control.
 
-#define WIFI_SSID "YOUR_WIFI_SSID_HERE"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD_HERE"
+#define WIFI_SSID "AA"
+#define WIFI_PASSWORD "1357924680"
 
 #endif // WIFI_CONFIG_TEMPLATE_H_
