@@ -10,27 +10,17 @@ const API_BASE_URL = (function () {
             let u = window.GRAIN_GUARDIAN_API_URL.replace(/\/+$/, "");
             return u.endsWith("/api") ? u : `${u}/api`;
         }
+        // Explicitly stored API URL preference
         try {
             const stored = localStorage.getItem("gg_api_url");
-            // Disallow stale localhost overrides if hosted on GitHub Pages
-            if (stored && (!window.location.hostname.includes("github.io") || !stored.includes("localhost"))) {
+            if (stored) {
                 let u = stored.trim().replace(/\/+$/, "");
                 return u.endsWith("/api") ? u : `${u}/api`;
             }
         } catch (e) { }
 
-        // Local development or file opening
-        if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:") {
-            return "http://localhost:5000/api";
-        }
-
-        // GitHub Pages frontend connects to Render backend
-        if (window.location.hostname.includes("github.io")) {
-            return "https://grain-guardian-api.onrender.com/api";
-        }
-
-        // Other cloud deployments
-        return `${window.location.origin}/api`;
+        // Default all environments (GitHub Pages, local static servers, and file://) to Render backend
+        return "https://grain-guardian-api.onrender.com/api";
     }
     return "http://localhost:5000/api";
 })();

@@ -5,6 +5,8 @@
 #include "esp_http_server.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 #include "camera_pins.h"
 #include "camera_config.h"
@@ -133,22 +135,23 @@ void setupWiFi() {
   Serial.println(WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false); // Disable modem sleep to prevent dropped hotspot packets
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+  while (WiFi.status() != WL_CONNECTED && attempts < 35) {
     delay(400);
     Serial.print(".");
     attempts++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[WiFi] Connected successfully!");
+    Serial.println("\n[WiFi] Connected successfully to hotspot!");
     Serial.print("[WiFi] Camera IP: ");
     Serial.println(WiFi.localIP());
     Serial.printf("[WiFi] Stream URL: http://%s:%d/stream\n", WiFi.localIP().toString().c_str(), STREAM_SERVER_PORT);
   } else {
-    Serial.println("\n[WiFi] Wi-Fi connection timed out. Retrying in loop...");
+    Serial.println("\n[WiFi] Initial hotspot connection timed out. Will auto-retry in loop...");
   }
 }
 
@@ -199,6 +202,8 @@ void sendCameraHeartbeat() {
 }
 
 void setup() {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // Disable brownout detector to prevent reboot spikes on mobile hotspot
+
   Serial.begin(115200);
   delay(500);
 
@@ -254,8 +259,10 @@ void setup() {
   // Connect to Wi-Fi
   setupWiFi();
 
-  // Start HTTP Streaming Server
-  startCameraServer();
+  // Start HTTP Streaming Server if connected
+  if (WiFi.status() == WL_CONNECTED) {
+    startCameraServer();
+  }
 }
 
 void loop() {
@@ -264,16 +271,22 @@ void loop() {
   // Send heartbeat every 5 seconds to notify backend of camera availability and stream URL
   if (currentMillis - lastHeartbeatTime >= HEARTBEAT_INTERVAL_MS) {
     lastHeartbeatTime = currentMillis;
-    sendCameraHeartbeat();
+    if (WiFi.status() == WL_CONNECTED) {
+      sendCameraHeartbeat();
+    }
   }
 
   // Maintain Wi-Fi connection
   if (WiFi.status() != WL_CONNECTED) {
     static unsigned long lastCamWifiRetry = 0;
-    if (currentMillis - lastCamWifiRetry >= 10000) {
+    if (currentMillis - lastCamWifiRetry >= 8000) {
       lastCamWifiRetry = currentMillis;
-      WiFi.reconnect();
+      Serial.println("[WiFi] Reconnecting to hotspot...");
+      WiFi.disconnect();
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     }
+  } else if (stream_httpd == NULL) {
+    startCameraServer();
   }
 
   delay(10);
