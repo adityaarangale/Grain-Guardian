@@ -52,61 +52,6 @@
             flex-shrink: 0;
         }
 
-        /* 1-Click Demo Samples Toolbar */
-        .demo-samples-container {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
-        @media (max-width: 900px) {
-            .demo-samples-container {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        .demo-sample-card {
-            background: #ffffff;
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            padding: 10px;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            text-align: left;
-            position: relative;
-        }
-        .demo-sample-card:hover {
-            border-color: var(--color-brand-green);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        }
-        .demo-sample-card.active {
-            border-color: var(--color-brand-green);
-            background: #f7fbf8;
-            box-shadow: 0 0 0 1px var(--color-brand-green);
-        }
-        .sample-thumb-preview {
-            width: 100%;
-            height: 72px;
-            border-radius: 4px;
-            object-fit: cover;
-            background: #0f1712;
-            border: 1px solid var(--color-border-subtle);
-        }
-        .sample-badge {
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: var(--font-mono);
-            display: inline-block;
-            align-self: flex-start;
-        }
-        .sample-badge-clear { background: #eaf6ee; color: #166534; border: 1px solid #bce3cb; }
-        .sample-badge-suspect { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
-        .sample-badge-positive { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-
         /* Seed Health Grading Styles */
         .grade-badge-large {
             display: inline-flex;
@@ -252,26 +197,6 @@
                     </div>
                 </div>
 
-                <!-- 1-Click Demo Testing & Reference Samples Card -->
-                <div class="theme-card" id="card-demo-samples" style="border-left: 4px solid var(--color-brand-green);">
-                    <div class="theme-card-header" style="margin-bottom: 8px;">
-                        <div class="theme-card-title">
-                            <span style="font-size: 16px;">⚡</span>
-                            <span>1-Click Test Samples (Aflatoxin &amp; Seed Health)</span>
-                        </div>
-                        <span style="font-size: 11px; font-weight: 600; color: var(--color-brand-green); background: #eaf6ee; border: 1px solid #bce3cb; padding: 2px 8px; border-radius: 4px;">
-                            Click Any Lot to Run
-                        </span>
-                    </div>
-                    <p style="font-size: 12px; color: var(--color-muted); margin: 0 0 12px 0; line-height: 1.45;">
-                        Select a calibrated grain lot below to instantly test the multi-factor optical scanner (365nm Aflatoxin BGYF detection + physical seed health grading):
-                    </p>
-
-                    <div class="demo-samples-container" id="demo-samples-grid">
-                        <!-- Loaded dynamically or rendered by JS -->
-                    </div>
-                </div>
-
                 <!-- Step 2 & 3: Optical Camera Chamber Viewport -->
                 <div class="theme-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
                     <!-- Chamber Viewport Header & Hardware Status -->
@@ -283,17 +208,21 @@
                             </span>
                             <span id="camera-hardware-badge" style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #eaf6ee; color: var(--color-risk-safe); border: 1px solid #bce3cb; display: inline-flex; align-items: center; gap: 5px;">
                                 <span class="tech-dot online"></span>
-                                <span id="camera-status-text">Camera Standby</span>
+                                <span id="camera-status-text">Detecting Webcams...</span>
                             </span>
                         </div>
 
                         <!-- Camera Device Selector & Mask Toggle -->
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <select id="camera-device-select" class="theme-select" style="height: 32px; font-size: 12px; min-width: 160px; padding-right: 28px;" onchange="changeCameraDevice()">
-                                <option value="">Default Optical Camera</option>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <select id="camera-device-select" class="theme-select" style="height: 32px; font-size: 12px; min-width: 190px; padding-right: 28px;" onchange="changeCameraDevice()" title="Select Camera (USB Webcam or PC Camera)">
+                                <option value="">Detecting Webcams...</option>
                             </select>
 
-                            <button type="button" class="btn-outline btn-sm" id="btn-toggle-mask" onclick="toggleMaskOverlay()" disabled title="Toggle between Raw 365nm Capture and Segmented HSV Fluorescence Mask">
+                            <button type="button" class="btn-primary btn-sm" id="btn-reconnect-cam" onclick="initCameraStream()" title="Restart / Reconnect Webcam Stream">
+                                <span>Reconnect Camera</span>
+                            </button>
+
+                            <button type="button" class="btn-outline btn-sm" id="btn-toggle-mask" onclick="toggleMaskOverlay()" disabled title="Toggle between Raw Capture and Segmented HSV Fluorescence Mask">
                                 <span id="toggle-mask-label">Show HSV Mask</span>
                             </button>
                         </div>
@@ -450,7 +379,7 @@
                             <span id="rec-title">Agronomic Recommendation:</span>
                         </div>
                         <div id="res-recommendation-text" style="color: var(--color-text); font-size: 12px; line-height: 1.45;">
-                            Place a sample on the inspection tray or select a 1-click demo sample above to generate automated screening guidance.
+                            Place a grain sample under the USB webcam inspection chamber or upload an image to generate automated screening guidance.
                         </div>
                     </div>
 
@@ -518,58 +447,7 @@
         let activeScanResult = null;
         let isShowingMask = false;
         let isAnalysisInProgress = false;
-
-        // Demo Calibrated Test Samples
-        const DEMO_SAMPLES = [
-            {
-                id: "healthy_wheat",
-                name: "Healthy Wheat",
-                subtitle: "Clean Monolayer",
-                filename: "healthy_wheat_sample.jpg",
-                status: "Clear",
-                badgeClass: "sample-badge-clear",
-                grade: "Grade A",
-                expectedSound: ">96%",
-                expectedBgyf: "0.0%",
-                desc: "Clean amber wheat, natural crease, zero BGYF fluorescence."
-            },
-            {
-                id: "aflatoxin_bgyf",
-                name: "Aflatoxin Positive",
-                subtitle: "365nm UV Chamber",
-                filename: "aflatoxin_bgyf_sample.jpg",
-                status: "Positive",
-                badgeClass: "sample-badge-positive",
-                grade: "Grade D",
-                expectedSound: "34%",
-                expectedBgyf: "7.2%",
-                desc: "Luminous neon yellow-green BGYF emission (Aspergillus flavus / Kojic acid)."
-            },
-            {
-                id: "mold_damaged",
-                name: "Mold & Spoilage",
-                subtitle: "Fungal Rot & Blight",
-                filename: "mold_damaged_sample.jpg",
-                status: "High Defects",
-                badgeClass: "sample-badge-positive",
-                grade: "Grade D",
-                expectedSound: "60%",
-                expectedBgyf: "0.2%",
-                desc: "Charcoal rot lesions, black point, broken & shriveled grain defects."
-            },
-            {
-                id: "suspect_borderline",
-                name: "Borderline Suspect",
-                subtitle: "Weak Luminescence",
-                filename: "suspect_borderline_sample.jpg",
-                status: "Suspect",
-                badgeClass: "sample-badge-suspect",
-                grade: "Grade C",
-                expectedSound: "88%",
-                expectedBgyf: "1.1%",
-                desc: "Isolated fluorescence specks (~1.1%). Requires lot quarantine & ELISA test."
-            }
-        ];
+        let selectedScanWebcamId = null;
 
         document.addEventListener("DOMContentLoaded", async () => {
             // Initialize Unified Application Layout
@@ -587,9 +465,6 @@
             document.getElementById("icon-btn-capture").innerHTML = GrainLayout.icons.scan;
             document.getElementById("icon-btn-analyze").innerHTML = GrainLayout.icons.ai;
 
-            // Render 1-click test samples toolbar
-            renderDemoSamplesToolbar();
-
             // Load initial state for selected unit
             syncSelectedUnitUI();
             await loadLatestUnitScan();
@@ -602,8 +477,8 @@
                 await loadRecentScans();
             });
 
-            // Populate camera devices if supported
-            await enumerateCameraDevices();
+            // Automatically detect and initialize the USB webcam feed
+            await initCameraStream();
         });
 
         function syncSelectedUnitUI() {
@@ -619,9 +494,32 @@
         }
 
         // ==========================================
-        // STEP 1 & 2: Camera Feed Initialization
+        // STEP 1 & 2: USB Webcam & Camera Detection
         // ==========================================
-        async function enumerateCameraDevices() {
+        function findBestWebcamDevice(videoDevs) {
+            if (!videoDevs || videoDevs.length === 0) return null;
+            if (videoDevs.length === 1) return videoDevs[0].deviceId;
+
+            // 1. Look for explicit USB or external webcam keywords
+            const usbCam = videoDevs.find(d => {
+                const lbl = (d.label || "").toLowerCase();
+                return (lbl.includes("usb") || lbl.includes("external") || lbl.includes("uvc") || lbl.includes("webcam") || lbl.includes("cam") || lbl.includes("fhd") || lbl.includes("hd camera"))
+                    && !lbl.includes("integrated") && !lbl.includes("internal") && !lbl.includes("front") && !lbl.includes("built-in");
+            });
+            if (usbCam) return usbCam.deviceId;
+
+            // 2. Look for any camera that does NOT say integrated / internal
+            const nonIntegrated = videoDevs.find(d => {
+                const lbl = (d.label || "").toLowerCase();
+                return lbl && !lbl.includes("integrated") && !lbl.includes("internal") && !lbl.includes("front") && !lbl.includes("built-in");
+            });
+            if (nonIntegrated) return nonIntegrated.deviceId;
+
+            // 3. Fallback: on Windows, external USB cameras are listed after index 0 (the laptop's built-in webcam)
+            return videoDevs[videoDevs.length - 1].deviceId;
+        }
+
+        async function enumerateCameraDevices(chosenId = null) {
             if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
@@ -629,9 +527,17 @@
                 const select = document.getElementById("camera-device-select");
                 if (!select || videoDevices.length === 0) return;
 
-                select.innerHTML = videoDevices.map((d, idx) => `
-                    <option value="${d.deviceId}">${d.label || `Optical Camera ${idx + 1}`}</option>
-                `).join("");
+                select.innerHTML = videoDevices.map((d, idx) => {
+                    const raw = (d.label || `Camera ${idx + 1}`).trim();
+                    const lower = raw.toLowerCase();
+                    const isUsb = lower.includes("usb") || lower.includes("external") || lower.includes("uvc") || (!lower.includes("integrated") && !lower.includes("internal") && videoDevices.length > 1 && idx > 0);
+                    const prefix = isUsb ? "📷 [USB Webcam]: " : "💻 [PC Camera]: ";
+                    return `<option value="${d.deviceId}">${prefix}${raw}</option>`;
+                }).join("");
+
+                if (chosenId) {
+                    select.value = chosenId;
+                }
             } catch (err) {
                 console.warn("Unable to enumerate video devices:", err);
             }
@@ -645,8 +551,9 @@
             const videoElem = document.getElementById("camera-stream");
             const capturedImg = document.getElementById("captured-frame-img");
             const captureBtn = document.getElementById("btn-capture-frame");
+            const select = document.getElementById("camera-device-select");
 
-            if (statusText) statusText.textContent = "Connecting Camera...";
+            if (statusText) statusText.textContent = "Detecting Webcams...";
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 setCameraStateUI("not_supported", "Browser Camera API not supported. Please use the Upload Image option.");
@@ -654,21 +561,50 @@
             }
 
             try {
+                // Determine which camera device to use
+                let activeDevId = preferredDeviceId || selectedScanWebcamId;
+
+                if (!activeDevId) {
+                    if (select && select.value) {
+                        activeDevId = select.value;
+                    } else {
+                        // Request brief permission to populate real device labels
+                        let permStream = null;
+                        try {
+                            permStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                        } catch (e) { }
+
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const videoDevices = devices.filter(d => d.kind === "videoinput");
+                        if (permStream) permStream.getTracks().forEach(t => t.stop());
+
+                        // Prioritize external USB webcam connected to USB port
+                        activeDevId = findBestWebcamDevice(videoDevices);
+                    }
+                }
+
+                selectedScanWebcamId = activeDevId;
+
                 // Stop any existing stream
                 if (activeMediaStream) {
                     activeMediaStream.getTracks().forEach(track => track.stop());
+                    activeMediaStream = null;
                 }
 
-                let constraints = preferredDeviceId 
-                    ? { video: { deviceId: { exact: preferredDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
+                let constraints = activeDevId 
+                    ? { video: { deviceId: { exact: activeDevId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
                     : { video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
 
                 try {
                     activeMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 } catch (firstErr) {
-                    // Fallback to basic video constraint for standard PC/laptop webcams
-                    activeMediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    if (activeDevId) {
+                        activeMediaStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: activeDevId } });
+                    } else {
+                        activeMediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    }
                 }
+
                 videoElem.srcObject = activeMediaStream;
                 await videoElem.play();
 
@@ -678,18 +614,25 @@
                 if (fallbackCard) fallbackCard.style.display = "none";
                 if (captureBtn) captureBtn.disabled = false;
 
-                setCameraStateUI("connected", "Camera Active \u2022 1280x720");
-                document.getElementById("chamber-mode-label").textContent = "LIVE STREAM \u2022 365nm CHAMBER";
-                await enumerateCameraDevices();
+                // Refresh device list and sync selector
+                await enumerateCameraDevices(activeDevId);
+
+                // Identify whether USB or built-in
+                const activeTrack = activeMediaStream.getVideoTracks()[0];
+                const activeLabel = (activeTrack && activeTrack.label) ? activeTrack.label : "Webcam";
+                const isUsb = activeLabel.toLowerCase().includes("usb") || (!activeLabel.toLowerCase().includes("integrated") && !activeLabel.toLowerCase().includes("internal"));
+
+                setCameraStateUI("connected", isUsb ? `USB Webcam (${activeLabel})` : `Webcam Active (${activeLabel})`);
+                document.getElementById("chamber-mode-label").textContent = `LIVE FEED \u2022 ${isUsb ? 'USB WEBCAM' : 'OPTICAL CAMERA'}`;
 
             } catch (err) {
                 console.error("Camera initialization failure:", err);
                 if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
                     setCameraStateUI("denied", "Camera permission was denied. Allow camera access in browser URL bar, or upload an image file.");
                 } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-                    setCameraStateUI("not_found", "No camera detected. Connect a USB camera / microscope, or upload a grain sample photo.");
+                    setCameraStateUI("not_found", "No webcam detected. Connect your USB webcam to a USB port, or upload a grain sample photo.");
                 } else {
-                    setCameraStateUI("error", `Camera acquisition error: ${err.message || "Unknown error"}. Use image upload as fallback.`);
+                    setCameraStateUI("error", `Camera acquisition error: ${err.message || "Unknown error"}. Check USB webcam port connection.`);
                 }
             }
         }
@@ -703,14 +646,14 @@
             const captureBtn = document.getElementById("btn-capture-frame");
             const videoElem = document.getElementById("camera-stream");
 
-            if (videoElem) videoElem.style.display = "none";
-            if (captureBtn) captureBtn.disabled = true;
+            if (videoElem && state !== "connected") videoElem.style.display = "none";
+            if (captureBtn && state !== "connected") captureBtn.disabled = true;
 
-            if (fallbackCard) fallbackCard.style.display = "flex";
-            if (title) title.textContent = state === "denied" ? "Camera Permission Required" : "Camera Disconnected";
+            if (fallbackCard) fallbackCard.style.display = state === "connected" ? "none" : "flex";
+            if (title) title.textContent = state === "denied" ? "Camera Permission Required" : "Camera Feed Standby";
             if (desc) desc.textContent = message;
 
-            if (statusText) statusText.textContent = state === "connected" ? "Connected" : "Disconnected";
+            if (statusText) statusText.textContent = state === "connected" ? "Active" : "Disconnected";
             if (badge) {
                 badge.style.background = state === "connected" ? "#eaf6ee" : "#fef2f2";
                 badge.style.color = state === "connected" ? "var(--color-risk-safe)" : "var(--color-risk-critical)";
@@ -723,7 +666,10 @@
         async function changeCameraDevice() {
             const select = document.getElementById("camera-device-select");
             const devId = select ? select.value : null;
-            if (devId) await initCameraStream(devId);
+            if (devId) {
+                selectedScanWebcamId = devId;
+                await initCameraStream(devId);
+            }
         }
 
         // ==========================================
@@ -780,7 +726,7 @@
             if (capturedControls) capturedControls.style.display = "none";
             if (toggleMaskBtn) toggleMaskBtn.disabled = true;
 
-            document.getElementById("chamber-mode-label").textContent = "LIVE STREAM \u2022 365nm CHAMBER";
+            document.getElementById("chamber-mode-label").textContent = "LIVE FEED \u2022 365nm CHAMBER";
             updateWorkflowStep(2);
         }
 
@@ -823,99 +769,6 @@
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
-        }
-
-        // ==========================================
-        // 1-Click Demo Testing & Reference Samples
-        // ==========================================
-        function renderDemoSamplesToolbar() {
-            const container = document.getElementById("demo-samples-grid");
-            if (!container) return;
-
-            container.innerHTML = DEMO_SAMPLES.map(s => {
-                const localPath = `../assets/samples/${s.filename}`;
-                return `
-                    <div class="demo-sample-card" id="demo-card-${s.id}" onclick="loadDemoSample('${s.id}', true)">
-                        <img src="${localPath}" class="sample-thumb-preview" alt="${s.name}" onerror="this.src='${API_BASE_URL.replace(/\/api\/?$/, '')}/api/sample-images/${s.filename}'" />
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; margin-top: 4px;">
-                            <div>
-                                <strong style="font-size: 12px; color: var(--color-text); display: block;">${s.name}</strong>
-                                <span style="font-size: 11px; color: var(--color-muted);">${s.subtitle}</span>
-                            </div>
-                            <span class="sample-badge ${s.badgeClass}">${s.grade}</span>
-                        </div>
-                        <div style="font-size: 11px; color: var(--color-muted); line-height: 1.35; margin-top: 2px;">
-                            ${s.desc}
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--color-border-subtle);">
-                            <span style="font-size: 11px; font-weight: 700; color: var(--color-brand-green);">⚡ Click to Scan</span>
-                            <button type="button" class="btn-outline btn-sm" style="padding: 1px 7px; font-size: 10px; height: 22px;" onclick="downloadSample('${s.filename}', event)" title="Download sample JPEG for manual upload test">
-                                ⬇ JPG
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join("");
-        }
-
-        function downloadSample(filename, event) {
-            if (event) event.stopPropagation();
-            const a = document.createElement("a");
-            a.href = `../assets/samples/${filename}`;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        async function loadDemoSample(sampleId, autoRun = true) {
-            const sample = DEMO_SAMPLES.find(s => s.id === sampleId);
-            if (!sample) return;
-
-            document.querySelectorAll(".demo-sample-card").forEach(el => el.classList.remove("active"));
-            const card = document.getElementById(`demo-card-${sampleId}`);
-            if (card) card.classList.add("active");
-
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-                const canvas = document.getElementById("working-canvas");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0);
-
-                canvas.toBlob(async (blob) => {
-                    capturedImageBlob = blob;
-                    const capturedImg = document.getElementById("captured-frame-img");
-                    const videoElem = document.getElementById("camera-stream");
-                    const fallbackCard = document.getElementById("camera-fallback-card");
-                    const liveControls = document.getElementById("live-controls");
-                    const capturedControls = document.getElementById("captured-controls");
-
-                    if (fallbackCard) fallbackCard.style.display = "none";
-                    if (videoElem) videoElem.style.display = "none";
-                    if (capturedImg) {
-                        capturedImg.src = img.src;
-                        capturedImg.style.display = "block";
-                    }
-
-                    if (liveControls) liveControls.style.display = "none";
-                    if (capturedControls) capturedControls.style.display = "flex";
-
-                    document.getElementById("chamber-mode-label").textContent = `DEMO SAMPLE: ${sample.name.toUpperCase()} \u2022 READY`;
-                    updateWorkflowStep(3);
-
-                    if (autoRun) {
-                        await executeImageAnalysis();
-                    }
-                }, "image/jpeg", 0.95);
-            };
-
-            img.onerror = () => {
-                img.src = `${API_BASE_URL.replace(/\/api\/?$/, '')}/api/sample-images/${sample.filename}`;
-            };
-            img.src = `../assets/samples/${sample.filename}`;
         }
 
         // ==========================================

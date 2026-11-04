@@ -384,10 +384,17 @@
                                 <span>Optical Inspection Camera Feed</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <!-- Live Webcam Device Selector (Auto-selects USB Webcam) -->
+                                <select id="dashboard-camera-select" class="theme-select"
+                                    style="font-size: 11px; padding: 2px 6px; max-width: 175px; height: 26px; border-radius: 4px; display: inline-block;"
+                                    onchange="onDashboardCameraSelectChange(this.value)"
+                                    title="Choose Video Device (USB Webcam prioritized)">
+                                    <option value="">🔍 USB Webcam (Auto-Detect)</option>
+                                </select>
                                 <button type="button" id="btn-cam-mode-pc" class="badge badge-primary"
                                     style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;"
-                                    onclick="setCameraFeedSource('pc')" title="Live PC / Laptop Webcam">
-                                    PC Webcam
+                                    onclick="setCameraFeedSource('pc')" title="Live USB / PC Webcam">
+                                    Webcam (USB)
                                 </button>
                                 <button type="button" id="btn-cam-mode-cloud" class="badge badge-neutral"
                                     style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;"
@@ -652,6 +659,9 @@
 
             // Initial fetch
             await loadDashboardData();
+
+            // Detect and populate available USB / PC webcams in dropdown
+            await populateDashboardCameraSelector();
 
             // Auto-refresh every 5s with AbortController to eliminate overlapping requests
             if (autoRefreshInterval) clearInterval(autoRefreshInterval);
@@ -1043,27 +1053,104 @@
 
         /**
          * Camera Stream Viewer Logic
-         * Supports PC Webcam (default), ESP32-CAM Cloud relay, and Direct Wi-Fi stream.
+         * Supports USB / PC Webcam (default), ESP32-CAM Cloud relay, and Direct Wi-Fi stream.
+         * Prioritizes external USB webcam devices over built-in laptop cameras.
          */
         let cameraFrameTimer = null;
         let webcamRelayTimer = null;
         let activeWebcamStream = null;
-        let cameraFeedSource = "pc"; // Default to "pc" webcam! "pc", "cloud", or "local"
+        let cameraFeedSource = "pc"; // Default to "pc" (USB/PC webcam)! "pc", "cloud", or "local"
+        let selectedDashboardWebcamId = null;
+
+        function findPreferredDashboardWebcam(videoDevs) {
+            if (!videoDevs || videoDevs.length === 0) return null;
+            if (videoDevs.length === 1) return videoDevs[0].deviceId;
+
+            // 1. Look for explicit USB or external webcam keywords
+            const usbCam = videoDevs.find(d => {
+                const lbl = (d.label || "").toLowerCase();
+                return (lbl.includes("usb") || lbl.includes("external") || lbl.includes("uvc") || lbl.includes("webcam") || lbl.includes("cam") || lbl.includes("fhd") || lbl.includes("hd camera"))
+                    && !lbl.includes("integrated") && !lbl.includes("internal") && !lbl.includes("front") && !lbl.includes("built-in");
+            });
+            if (usbCam) return usbCam.deviceId;
+
+            // 2. Look for any camera that does NOT say integrated / internal / front
+            const nonIntegrated = videoDevs.find(d => {
+                const lbl = (d.label || "").toLowerCase();
+                return lbl && !lbl.includes("integrated") && !lbl.includes("internal") && !lbl.includes("front") && !lbl.includes("built-in");
+            });
+            if (nonIntegrated) return nonIntegrated.deviceId;
+
+            // 3. Fallback: on Windows laptops with integrated webcams, the external USB camera is listed after index 0
+            return videoDevs[videoDevs.length - 1].deviceId;
+        }
+
+        async function populateDashboardCameraSelector(chosenId = null) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+            try {
+                const select = document.getElementById("dashboard-camera-select");
+                if (!select) return;
+
+                let devices = await navigator.mediaDevices.enumerateDevices();
+                let videoDevices = devices.filter(d => d.kind === "videoinput");
+
+                if (videoDevices.length === 0) {
+                    select.innerHTML = '<option value="">No Webcams Found</option>';
+                    return;
+                }
+
+                // If labels are empty (camera permission not requested yet), show default auto-detect option
+                const hasLabels = videoDevices.some(d => Boolean(d.label));
+                if (!hasLabels && !chosenId) {
+                    select.innerHTML = '<option value="">📷 USB Webcam (Auto-Detect)</option>';
+                    return;
+                }
+
+                let bestId = chosenId || selectedDashboardWebcamId || findPreferredDashboardWebcam(videoDevices);
+                selectedDashboardWebcamId = bestId;
+
+                select.innerHTML = videoDevices.map((d, idx) => {
+                    const raw = (d.label || `Camera ${idx + 1}`).trim();
+                    const lower = raw.toLowerCase();
+                    const isUsb = lower.includes("usb") || lower.includes("external") || lower.includes("uvc") || (!lower.includes("integrated") && !lower.includes("internal") && videoDevices.length > 1 && idx > 0);
+                    const prefix = isUsb ? "📷 [USB]: " : "💻 [PC]: ";
+                    const isSelected = (d.deviceId === bestId) ? " selected" : "";
+                    return `<option value="${d.deviceId}"${isSelected}>${prefix}${raw}</option>`;
+                }).join("");
+
+                if (bestId) {
+                    select.value = bestId;
+                }
+            } catch (err) {
+                console.warn("Unable to enumerate dashboard video devices:", err);
+            }
+        }
+
+        async function onDashboardCameraSelectChange(devId) {
+            if (!devId) return;
+            selectedDashboardWebcamId = devId;
+            if (isCameraStreaming && cameraFeedSource === "pc") {
+                await startCameraPlayback();
+            }
+        }
 
         function setCameraFeedSource(src) {
             cameraFeedSource = src;
             const btnPc = document.getElementById("btn-cam-mode-pc");
             const btnCloud = document.getElementById("btn-cam-mode-cloud");
             const btnLocal = document.getElementById("btn-cam-mode-local");
+            const camSelect = document.getElementById("dashboard-camera-select");
+
             if (btnPc) btnPc.className = src === "pc" ? "badge badge-primary" : "badge badge-neutral";
             if (btnCloud) btnCloud.className = src === "cloud" ? "badge badge-primary" : "badge badge-neutral";
             if (btnLocal) btnLocal.className = src === "local" ? "badge badge-primary" : "badge badge-neutral";
+            if (camSelect) camSelect.style.display = src === "pc" ? "inline-block" : "none";
 
             // Update standby description
             const standbyDesc = document.getElementById("cam-standby-desc");
             if (standbyDesc && !isCameraStreaming) {
                 if (src === "pc") {
-                    standbyDesc.textContent = "Click \"Open Camera\" to turn on the live webcam connected to your PC.";
+                    standbyDesc.textContent = "Click \"Open Camera\" to turn on the live USB / PC webcam.";
                 } else if (src === "cloud") {
                     standbyDesc.textContent = "Click \"Open Camera\" to view the cloud HTTPS feed from the ESP32-CAM.";
                 } else {
@@ -1122,7 +1209,7 @@
                 const loaderText = document.getElementById("cam-loader-text");
                 if (loaderText) {
                     loaderText.textContent = cameraFeedSource === "pc"
-                        ? "Connecting to PC webcam..."
+                        ? "Connecting to USB / PC webcam..."
                         : "Connecting to ESP32-CAM stream...";
                 }
                 loader.style.display = "flex";
@@ -1143,7 +1230,7 @@
 
             if (!isCameraStreaming) return;
 
-            // 1. PC WEBCAM MODE (Default)
+            // 1. USB / PC WEBCAM MODE (Default)
             if (cameraFeedSource === "pc") {
                 if (img) { img.src = ""; img.style.display = "none"; }
 
@@ -1164,20 +1251,41 @@
                         activeWebcamStream = null;
                     }
 
-                    const constraints = {
-                        video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    };
+                    // Determine which camera device to use (prioritizing external USB webcam)
+                    const select = document.getElementById("dashboard-camera-select");
+                    let activeDevId = selectedDashboardWebcamId || (select && select.value ? select.value : null);
+
+                    if (!activeDevId) {
+                        // Request brief permission to populate real device labels
+                        let permStream = null;
+                        try {
+                            permStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                        } catch (e) { }
+
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const videoDevices = devices.filter(d => d.kind === "videoinput");
+                        if (permStream) permStream.getTracks().forEach(t => t.stop());
+
+                        activeDevId = findPreferredDashboardWebcam(videoDevices);
+                    }
+
+                    selectedDashboardWebcamId = activeDevId;
+
+                    let constraints = activeDevId
+                        ? { video: { deviceId: { exact: activeDevId }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
+                        : { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
 
                     try {
                         activeWebcamStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    } catch (idealErr) {
-                        // Fallback to basic webcam constraints for all PC/laptop/USB webcams
-                        activeWebcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    } catch (exactErr) {
+                        // Fallback constraints
+                        if (activeDevId) {
+                            activeWebcamStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: activeDevId }, audio: false });
+                        } else {
+                            activeWebcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                        }
                     }
+
                     if (!isCameraStreaming || cameraFeedSource !== "pc") {
                         activeWebcamStream.getTracks().forEach(t => t.stop());
                         return;
@@ -1185,6 +1293,18 @@
 
                     video.srcObject = activeWebcamStream;
                     await video.play();
+
+                    // Refresh camera selector now that permissions are fully granted
+                    await populateDashboardCameraSelector(activeDevId);
+
+                    const activeTrack = activeWebcamStream.getVideoTracks()[0];
+                    const activeLabel = (activeTrack && activeTrack.label) ? activeTrack.label : "Webcam";
+                    const isUsb = activeLabel.toLowerCase().includes("usb") || (!activeLabel.toLowerCase().includes("integrated") && !activeLabel.toLowerCase().includes("internal"));
+
+                    const standbyDesc = document.getElementById("cam-standby-desc");
+                    if (standbyDesc) {
+                        standbyDesc.textContent = isUsb ? `Active: USB Webcam (${activeLabel})` : `Active: PC Webcam (${activeLabel})`;
+                    }
 
                     if (loader) loader.style.display = "none";
                     if (standby) standby.style.display = "none";
@@ -1221,9 +1341,9 @@
                     if (video) video.style.display = "none";
                     if (standby) {
                         standby.style.display = "block";
-                        document.getElementById("cam-standby-title").textContent = "PC Webcam Access Needed";
+                        document.getElementById("cam-standby-title").textContent = "Webcam Access Needed";
                         document.getElementById("cam-standby-desc").innerHTML = `
-                            <div style="margin-bottom: 8px;">Please click "Allow" when your browser prompts for Camera permissions.</div>
+                            <div style="margin-bottom: 8px;">Please click "Allow" when your browser prompts for Camera permissions, and check that your USB webcam is plugged into a USB port.</div>
                             <div style="margin-top: 10px;">
                                 <button type="button" onclick="setCameraFeedSource('cloud')" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
                                     Switch to ESP32-CAM Cloud Feed &rarr;
