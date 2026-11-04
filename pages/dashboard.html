@@ -299,14 +299,17 @@
                         <div class="theme-card-header" style="margin-bottom: 12px;">
                             <div class="theme-card-title">
                                 <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;" id="icon-cam-header"></span>
-                                <span>ESP32-CAM Live Feed</span>
+                                <span>Optical Inspection Camera Feed</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <button type="button" id="btn-cam-mode-cloud" class="badge badge-primary" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('cloud')" title="Relayed over Render HTTPS (No mixed-content errors)">
-                                    Cloud Feed
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <button type="button" id="btn-cam-mode-pc" class="badge badge-primary" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('pc')" title="Live PC / Laptop Webcam">
+                                    PC Webcam
                                 </button>
-                                <button type="button" id="btn-cam-mode-local" class="badge badge-neutral" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('local')" title="Direct local Wi-Fi port 81 stream">
-                                    Direct Wi-Fi
+                                <button type="button" id="btn-cam-mode-cloud" class="badge badge-neutral" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('cloud')" title="ESP32-CAM via Cloud HTTPS Relay">
+                                    ESP32-CAM (Cloud)
+                                </button>
+                                <button type="button" id="btn-cam-mode-local" class="badge badge-neutral" style="cursor: pointer; border: none; font-size: 11px; padding: 4px 8px;" onclick="setCameraFeedSource('local')" title="ESP32-CAM Direct Wi-Fi (Port 81)">
+                                    ESP32-CAM (Wi-Fi)
                                 </button>
                                 <button type="button" class="btn-primary btn-sm" id="btn-camera-toggle" onclick="toggleCameraStream()">
                                     Open Camera
@@ -315,14 +318,20 @@
                         </div>
 
                         <!-- Camera Viewport Box -->
-                        <div class="camera-stream-viewport" id="cam-viewport">
-                            <!-- Stream Image Element -->
-                            <img id="esp32-cam-stream-img" class="camera-stream-img" alt="ESP32-CAM Stream" style="display: none;" />
+                        <div class="camera-stream-viewport" id="cam-viewport" style="position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #0b1310; min-height: 240px; border-radius: var(--radius-card);">
+                            <!-- PC Webcam Live Video Element -->
+                            <video id="dashboard-webcam" autoplay playsinline muted style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-card);"></video>
+
+                            <!-- ESP32-CAM Stream Image Element -->
+                            <img id="esp32-cam-stream-img" class="camera-stream-img" alt="ESP32-CAM Stream" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-card);" />
+
+                            <!-- Hidden Working Canvas for Frame Relaying -->
+                            <canvas id="dashboard-webcam-canvas" style="display: none;"></canvas>
 
                             <!-- Loading Overlay -->
                             <div id="cam-loader" class="camera-loader-overlay" style="display: none;">
                                 <div class="pulse-spinner"></div>
-                                <span style="font-size: 13px; font-weight: 600;">Connecting to ESP32-CAM stream...</span>
+                                <span id="cam-loader-text" style="font-size: 13px; font-weight: 600;">Connecting to camera...</span>
                             </div>
 
                             <!-- Standby / Offline State Card -->
@@ -330,7 +339,7 @@
                                 <span style="width: 44px; height: 44px; color: #57695e; display: flex; margin: 0 auto 10px auto;" id="icon-cam-placeholder"></span>
                                 <div style="font-size: 15px; font-weight: 700; color: #fbfaf6; margin-bottom: 4px;" id="cam-standby-title">Camera Stream Standby</div>
                                 <p style="font-size: 12px; line-height: 1.45; color: #94a3b8; margin-bottom: 14px;" id="cam-standby-desc">
-                                    Click "Open Camera" to connect directly to the ESP32-CAM video stream on your local Wi-Fi network.
+                                    Click "Open Camera" to turn on the live webcam connected to your PC.
                                 </p>
                             </div>
                         </div>
@@ -900,19 +909,37 @@
 
         /**
          * Camera Stream Viewer Logic
-         * Supports direct configurable local Wi-Fi MJPEG stream without reloading page.
+         * Supports PC Webcam (default), ESP32-CAM Cloud relay, and Direct Wi-Fi stream.
          */
         let cameraFrameTimer = null;
-        let cameraFeedSource = "cloud"; // "cloud" (HTTPS relay, works in all browsers) or "local"
+        let webcamRelayTimer = null;
+        let activeWebcamStream = null;
+        let cameraFeedSource = "pc"; // Default to "pc" webcam! "pc", "cloud", or "local"
 
         function setCameraFeedSource(src) {
             cameraFeedSource = src;
+            const btnPc = document.getElementById("btn-cam-mode-pc");
             const btnCloud = document.getElementById("btn-cam-mode-cloud");
             const btnLocal = document.getElementById("btn-cam-mode-local");
+            if (btnPc) btnPc.className = src === "pc" ? "badge badge-primary" : "badge badge-neutral";
             if (btnCloud) btnCloud.className = src === "cloud" ? "badge badge-primary" : "badge badge-neutral";
             if (btnLocal) btnLocal.className = src === "local" ? "badge badge-primary" : "badge badge-neutral";
+
+            // Update standby description
+            const standbyDesc = document.getElementById("cam-standby-desc");
+            if (standbyDesc && !isCameraStreaming) {
+                if (src === "pc") {
+                    standbyDesc.textContent = "Click \"Open Camera\" to turn on the live webcam connected to your PC.";
+                } else if (src === "cloud") {
+                    standbyDesc.textContent = "Click \"Open Camera\" to view the cloud HTTPS feed from the ESP32-CAM.";
+                } else {
+                    standbyDesc.textContent = "Click \"Open Camera\" to connect directly to the ESP32-CAM on your local Wi-Fi.";
+                }
+            }
+
             if (isCameraStreaming) {
                 clearTimeout(cameraFrameTimer);
+                clearTimeout(webcamRelayTimer);
                 startCameraPlayback();
             }
         }
@@ -920,16 +947,35 @@
         async function toggleCameraStream() {
             const btn = document.getElementById("btn-camera-toggle");
             const img = document.getElementById("esp32-cam-stream-img");
+            const video = document.getElementById("dashboard-webcam");
             const loader = document.getElementById("cam-loader");
             const standby = document.getElementById("cam-standby-box");
 
             if (isCameraStreaming) {
                 // STOP CAMERA
                 clearTimeout(cameraFrameTimer);
-                img.src = "";
-                img.style.display = "none";
-                loader.style.display = "none";
-                standby.style.display = "block";
+                clearTimeout(webcamRelayTimer);
+
+                // Stop PC webcam hardware tracks if active
+                if (activeWebcamStream) {
+                    activeWebcamStream.getTracks().forEach(track => {
+                        try { track.stop(); } catch (e) {}
+                    });
+                    activeWebcamStream = null;
+                }
+                if (video) {
+                    video.srcObject = null;
+                    video.style.display = "none";
+                }
+
+                if (img) {
+                    img.src = "";
+                    img.style.display = "none";
+                }
+
+                if (loader) loader.style.display = "none";
+                if (standby) standby.style.display = "block";
+
                 btn.textContent = "Open Camera";
                 btn.className = "btn-primary btn-sm";
                 isCameraStreaming = false;
@@ -937,34 +983,142 @@
             }
 
             // START CAMERA
-            standby.style.display = "none";
-            loader.style.display = "flex";
+            if (standby) standby.style.display = "none";
+            if (loader) {
+                const loaderText = document.getElementById("cam-loader-text");
+                if (loaderText) {
+                    loaderText.textContent = cameraFeedSource === "pc" 
+                        ? "Connecting to PC webcam..." 
+                        : "Connecting to ESP32-CAM stream...";
+                }
+                loader.style.display = "flex";
+            }
             btn.textContent = "Stop Camera";
             btn.className = "btn-outline btn-sm";
             isCameraStreaming = true;
 
-            startCameraPlayback();
+            await startCameraPlayback();
         }
 
         async function startCameraPlayback() {
             const img = document.getElementById("esp32-cam-stream-img");
+            const video = document.getElementById("dashboard-webcam");
             const loader = document.getElementById("cam-loader");
             const standby = document.getElementById("cam-standby-box");
             const urlInput = document.getElementById("cam-url-input");
 
             if (!isCameraStreaming) return;
 
+            // 1. PC WEBCAM MODE (Default)
+            if (cameraFeedSource === "pc") {
+                if (img) { img.src = ""; img.style.display = "none"; }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    if (loader) loader.style.display = "none";
+                    if (standby) {
+                        standby.style.display = "block";
+                        document.getElementById("cam-standby-title").textContent = "Webcam Not Supported";
+                        document.getElementById("cam-standby-desc").innerHTML = "Your browser does not support WebRTC webcam access. Please switch to Cloud Feed or use a modern browser (Chrome, Edge, Firefox).";
+                    }
+                    return;
+                }
+
+                try {
+                    // Stop existing stream if active
+                    if (activeWebcamStream) {
+                        activeWebcamStream.getTracks().forEach(t => t.stop());
+                        activeWebcamStream = null;
+                    }
+
+                    const constraints = {
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    };
+
+                    try {
+                        activeWebcamStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch (idealErr) {
+                        // Fallback to basic webcam constraints for all PC/laptop/USB webcams
+                        activeWebcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    }
+                    if (!isCameraStreaming || cameraFeedSource !== "pc") {
+                        activeWebcamStream.getTracks().forEach(t => t.stop());
+                        return;
+                    }
+
+                    video.srcObject = activeWebcamStream;
+                    await video.play();
+
+                    if (loader) loader.style.display = "none";
+                    if (standby) standby.style.display = "none";
+                    video.style.display = "block";
+
+                    // Relay webcam frames to backend every 2s
+                    function relayWebcamFrame() {
+                        if (!isCameraStreaming || cameraFeedSource !== "pc" || !video || video.paused || video.ended) return;
+                        try {
+                            const canvas = document.getElementById("dashboard-webcam-canvas");
+                            if (canvas && video.videoWidth > 0) {
+                                canvas.width = 640;
+                                canvas.height = Math.round((video.videoHeight / video.videoWidth) * 640) || 480;
+                                const ctx = canvas.getContext("2d");
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                canvas.toBlob((blob) => {
+                                    if (blob && isCameraStreaming && cameraFeedSource === "pc") {
+                                        fetch(`${API_BASE_URL}/camera/frame`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "image/jpeg" },
+                                            body: blob
+                                        }).catch(() => {});
+                                    }
+                                }, "image/jpeg", 0.7);
+                            }
+                        } catch (e) {}
+                        webcamRelayTimer = setTimeout(relayWebcamFrame, 2000);
+                    }
+                    webcamRelayTimer = setTimeout(relayWebcamFrame, 1500);
+
+                } catch (camErr) {
+                    console.error("[Webcam Error]:", camErr);
+                    if (loader) loader.style.display = "none";
+                    if (video) video.style.display = "none";
+                    if (standby) {
+                        standby.style.display = "block";
+                        document.getElementById("cam-standby-title").textContent = "PC Webcam Access Needed";
+                        document.getElementById("cam-standby-desc").innerHTML = `
+                            <div style="margin-bottom: 8px;">Please click "Allow" when your browser prompts for Camera permissions.</div>
+                            <div style="margin-top: 10px;">
+                                <button type="button" onclick="setCameraFeedSource('cloud')" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+                                    Switch to ESP32-CAM Cloud Feed &rarr;
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+                return;
+            }
+
+            // Stop webcam if active when switching to ESP32 modes
+            if (activeWebcamStream) {
+                activeWebcamStream.getTracks().forEach(t => t.stop());
+                activeWebcamStream = null;
+            }
+            if (video) { video.srcObject = null; video.style.display = "none"; }
+
+            // 2. ESP32-CAM CLOUD FEED
             if (cameraFeedSource === "cloud") {
-                // Pure HTTPS Cloud Relay - zero mixed content errors, displays directly in webpage!
                 function fetchNextFrame() {
                     if (!isCameraStreaming || cameraFeedSource !== "cloud") return;
                     img.src = `${API_BASE_URL}/camera/frame?t=${Date.now()}`;
                 }
 
                 img.onload = () => {
-                    loader.style.display = "none";
+                    if (loader) loader.style.display = "none";
                     img.style.display = "block";
-                    standby.style.display = "none";
+                    if (standby) standby.style.display = "none";
                     clearTimeout(cameraFrameTimer);
                     if (isCameraStreaming && cameraFeedSource === "cloud") {
                         cameraFrameTimer = setTimeout(fetchNextFrame, 800);
@@ -974,43 +1128,44 @@
                 img.onerror = () => {
                     clearTimeout(cameraFrameTimer);
                     if (isCameraStreaming && cameraFeedSource === "cloud") {
-                        // Retry shortly if backend is still waiting for first frame
                         cameraFrameTimer = setTimeout(fetchNextFrame, 2000);
                     }
                 };
 
                 fetchNextFrame();
             } else {
-                // Local Direct Port 81 Stream
+                // 3. ESP32-CAM LOCAL WI-FI (Port 81)
                 const camStat = await fetchCameraStatus();
                 let targetUrl = (camStat && camStat.stream_url) ? camStat.stream_url : (urlInput ? urlInput.value.trim() : "");
                 if (!targetUrl) targetUrl = "http://192.168.1.150:81/stream";
 
                 img.onload = () => {
-                    loader.style.display = "none";
+                    if (loader) loader.style.display = "none";
                     img.style.display = "block";
-                    standby.style.display = "none";
+                    if (standby) standby.style.display = "none";
                 };
 
                 img.onerror = () => {
-                    loader.style.display = "none";
+                    if (loader) loader.style.display = "none";
                     img.style.display = "none";
-                    standby.style.display = "block";
-                    document.getElementById("cam-standby-title").textContent = "Local Wi-Fi Stream Notice";
-                    document.getElementById("cam-standby-desc").innerHTML = `
-                        <div style="margin-bottom: 8px; color: #f8fafc; font-size: 13px;">
-                            Stream target: <code class="font-mono" style="color: #6ee7b7; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px;">${targetUrl}</code>
-                        </div>
-                        <div style="margin: 10px 0;">
-                            <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 8px 16px;">
-                                <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
-                                Open Stream in New Tab
-                            </a>
-                        </div>
-                        <div style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
-                            Or switch to <strong>Cloud Feed</strong> above to view inside the page without browser warnings.
-                        </div>
-                    `;
+                    if (standby) {
+                        standby.style.display = "block";
+                        document.getElementById("cam-standby-title").textContent = "Local Wi-Fi Stream Notice";
+                        document.getElementById("cam-standby-desc").innerHTML = `
+                            <div style="margin-bottom: 8px; color: #f8fafc; font-size: 13px;">
+                                Stream target: <code class="font-mono" style="color: #6ee7b7; background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px;">${targetUrl}</code>
+                            </div>
+                            <div style="margin: 10px 0;">
+                                <a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 8px 16px;">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
+                                    Open Stream in New Tab
+                                </a>
+                            </div>
+                            <div style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
+                                Or switch to <strong>PC Webcam</strong> or <strong>Cloud Feed</strong> above.
+                            </div>
+                        `;
+                    }
                 };
 
                 img.src = targetUrl;

@@ -424,19 +424,16 @@
                     activeMediaStream.getTracks().forEach(track => track.stop());
                 }
 
-                const constraints = {
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: "environment"
-                    }
-                };
+                let constraints = preferredDeviceId 
+                    ? { video: { deviceId: { exact: preferredDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
+                    : { video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
 
-                if (preferredDeviceId) {
-                    constraints.video.deviceId = { exact: preferredDeviceId };
+                try {
+                    activeMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (firstErr) {
+                    // Fallback to basic video constraint for standard PC/laptop webcams
+                    activeMediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 }
-
-                activeMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 videoElem.srcObject = activeMediaStream;
                 await videoElem.play();
 
