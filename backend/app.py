@@ -75,7 +75,7 @@ if env_cors:
 
 CORS(
     app,
-    resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
+    resources={r"/api/*": {"origins": "*"}},
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Device-Token", "X-API-Key"],
     max_age=86400
@@ -1696,7 +1696,6 @@ def get_scan_config():
 
 @app.route("/api/dashboard", methods=["GET"])
 @app.route("/api/dashboard/<int:storage_unit_id>", methods=["GET"])
-@jwt_required(optional=True)
 def get_dashboard_summary(storage_unit_id=None):
     """
     GET /api/dashboard and GET /api/dashboard/<storage_unit_id>

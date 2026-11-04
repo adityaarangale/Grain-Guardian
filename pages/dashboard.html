@@ -615,28 +615,35 @@
                 activeNav: "dashboard"
             });
 
-            // Set inline SVG icons
-            document.getElementById("kpi-icon-safe").innerHTML = GrainLayout.icons.safe;
-            document.getElementById("kpi-icon-medium").innerHTML = GrainLayout.icons.medium;
-            document.getElementById("kpi-icon-high").innerHTML = GrainLayout.icons.high;
-            document.getElementById("kpi-icon-critical").innerHTML = GrainLayout.icons.critical;
+            // Set inline SVG icons safely
+            const setIcon = (id, iconSvg) => {
+                const el = document.getElementById(id);
+                if (el && iconSvg) el.innerHTML = iconSvg;
+            };
 
-            document.getElementById("strip-icon-storage").innerHTML = GrainLayout.icons.storage;
-            document.getElementById("strip-icon-temp").innerHTML = GrainLayout.icons.temp;
-            document.getElementById("strip-icon-humidity").innerHTML = GrainLayout.icons.humidity;
-            document.getElementById("strip-icon-gas").innerHTML = GrainLayout.icons.gas;
-            document.getElementById("strip-icon-moisture").innerHTML = GrainLayout.icons.moisture;
-            document.getElementById("strip-icon-days").innerHTML = GrainLayout.icons.ai;
+            if (GrainLayout && GrainLayout.icons) {
+                setIcon("kpi-icon-safe", GrainLayout.icons.safe);
+                setIcon("kpi-icon-medium", GrainLayout.icons.medium);
+                setIcon("kpi-icon-high", GrainLayout.icons.high);
+                setIcon("kpi-icon-critical", GrainLayout.icons.critical);
 
-            document.getElementById("icon-lights-header").innerHTML = GrainLayout.icons.fan;
-            document.getElementById("icon-cam-header").innerHTML = GrainLayout.icons.scan;
-            document.getElementById("icon-cam-placeholder").innerHTML = GrainLayout.icons.scan;
-            document.getElementById("icon-risk-card").innerHTML = GrainLayout.icons.ai;
+                setIcon("strip-icon-storage", GrainLayout.icons.storage);
+                setIcon("strip-icon-temp", GrainLayout.icons.temp);
+                setIcon("strip-icon-humidity", GrainLayout.icons.humidity);
+                setIcon("strip-icon-gas", GrainLayout.icons.gas);
+                setIcon("strip-icon-moisture", GrainLayout.icons.moisture);
+                setIcon("strip-icon-days", GrainLayout.icons.ai);
 
-            document.getElementById("table-icon-units").innerHTML = GrainLayout.icons.storage;
-            document.getElementById("table-icon-refresh").innerHTML = GrainLayout.icons.refresh;
-            document.getElementById("card-icon-alerts").innerHTML = GrainLayout.icons.alerts;
-            document.getElementById("card-icon-scan").innerHTML = GrainLayout.icons.scan;
+                setIcon("icon-lights-header", GrainLayout.icons.fan);
+                setIcon("icon-cam-header", GrainLayout.icons.scan);
+                setIcon("icon-cam-placeholder", GrainLayout.icons.scan);
+                setIcon("icon-risk-card", GrainLayout.icons.ai);
+
+                setIcon("table-icon-units", GrainLayout.icons.storage);
+                setIcon("table-icon-refresh", GrainLayout.icons.refresh);
+                setIcon("card-icon-alerts", GrainLayout.icons.alerts);
+                setIcon("card-icon-scan", GrainLayout.icons.scan);
+            }
 
             // Load saved camera URL if present
             const savedCamUrl = localStorage.getItem("gg_cam_stream_url") || "http://192.168.1.150:81/stream";

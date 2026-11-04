@@ -14,8 +14,8 @@ const API_BASE_URL = (function () {
         try {
             const stored = localStorage.getItem("gg_api_url");
             if (stored) {
-                // If on GitHub Pages, automatically clear stale localhost overrides
-                if (window.location.hostname.includes("github.io") && stored.includes("localhost")) {
+                // Clear any stale local overrides so client always connects to live backend
+                if (stored.includes("localhost") || stored.includes("127.0.0.1")) {
                     localStorage.removeItem("gg_api_url");
                 } else {
                     let u = stored.trim().replace(/\/+$/, "");
@@ -109,9 +109,15 @@ async function ensureAuthToken() {
     return null;
 }
 
+function isValidJwt(token) {
+    if (!token || typeof token !== "string") return false;
+    const parts = token.split(".");
+    return parts.length === 3 && parts[0].length > 10;
+}
+
 function getAuthHeaders() {
     const headers = {};
-    if (authToken) {
+    if (authToken && isValidJwt(authToken)) {
         headers["Authorization"] = `Bearer ${authToken}`;
     }
     return headers;
@@ -225,14 +231,22 @@ async function createStorageUnit(location, grainType) {
  */
 async function fetchDashboardSummary(unitId = 1, options = {}) {
     try {
-        if (!authToken) await ensureAuthToken();
         const fetchOptions = {
             headers: getAuthHeaders()
         };
         if (options.signal) {
             fetchOptions.signal = options.signal;
         }
-        const response = await fetch(`${API_BASE_URL}/dashboard/${unitId}`, fetchOptions);
+        let response = await fetch(`${API_BASE_URL}/dashboard/${unitId}`, fetchOptions);
+
+        // If server returns 401, 403, or 422 (stale/invalid JWT), clear token and retry anonymously
+        if (response.status === 401 || response.status === 403 || response.status === 422) {
+            setAuthToken(null, false);
+            response = await fetch(`${API_BASE_URL}/dashboard/${unitId}`, {
+                signal: options.signal
+            });
+        }
+
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return await response.json();
     } catch (error) {
