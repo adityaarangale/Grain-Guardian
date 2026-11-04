@@ -134,7 +134,20 @@
             <div id="loginAlert" class="hidden mb-md p-sm rounded-lg text-body-md font-medium"></div>
 
             <!-- Login Card -->
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md md:p-lg">
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md md:p-lg shadow-sm">
+                <!-- 1-Click Fast Login Action -->
+                <button type="button" onclick="quickManagerLogin()" id="quickManagerBtn"
+                    class="w-full mb-md flex items-center justify-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm font-label-md text-label-md text-white bg-gradient-to-r from-[#1b4332] to-[#2d6a4f] hover:from-[#2d6a4f] hover:to-[#40916c] transition-all cursor-pointer font-semibold">
+                    <span class="material-symbols-outlined text-[20px]">bolt</span>
+                    <span>⚡ 1-Click Fast Login (Facility Manager)</span>
+                </button>
+
+                <div class="relative flex py-2 items-center mb-md">
+                    <div class="flex-grow border-t border-outline-variant"></div>
+                    <span class="flex-shrink mx-3 text-xs text-on-surface-variant font-medium uppercase tracking-wider">or sign in manually</span>
+                    <div class="flex-grow border-t border-outline-variant"></div>
+                </div>
+
                 <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-md">
                     <div>
                         <label class="block font-label-md text-label-md text-on-surface mb-xs" for="email">Email Address</label>
@@ -156,22 +169,25 @@
                                     <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                                 </svg>
                             </div>
-                            <input class="block w-full pl-10 sm:text-sm border-outline-variant rounded-DEFAULT focus:ring-primary focus:border-primary font-body-md text-body-md bg-surface-container-lowest text-on-surface py-sm"
+                            <input class="block w-full pl-10 pr-10 sm:text-sm border-outline-variant rounded-DEFAULT focus:ring-primary focus:border-primary font-body-md text-body-md bg-surface-container-lowest text-on-surface py-sm"
                                 id="password" name="password" placeholder="••••••••" required type="password" />
+                            <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary focus:outline-none" title="Show/Hide Password">
+                                <span id="passwordEyeIcon" class="material-symbols-outlined text-[20px]">visibility</span>
+                            </button>
                         </div>
                     </div>
                     <div class="flex items-center justify-between mt-sm">
                         <div class="flex items-center">
                             <input class="h-4 w-4 text-primary focus:ring-primary border-outline-variant rounded-DEFAULT"
-                                id="remember-me" name="remember-me" type="checkbox" />
-                            <label class="ml-2 block font-body-md text-body-md text-on-surface-variant" for="remember-me">
+                                id="remember-me" name="remember-me" type="checkbox" checked />
+                            <label class="ml-2 block font-body-md text-body-md text-on-surface-variant cursor-pointer" for="remember-me">
                                 Remember me
                             </label>
                         </div>
                         <div class="text-sm">
-                            <a class="font-label-md text-label-md text-primary hover:text-primary-container" href="#">
-                                Forgot Password?
-                            </a>
+                            <button type="button" onclick="quickManagerLogin()" class="font-label-md text-label-md text-primary hover:text-primary-container font-semibold">
+                                Use Demo Account
+                            </button>
                         </div>
                     </div>
                     <div class="pt-sm space-y-3">
@@ -200,10 +216,10 @@
             <div class="mt-lg text-center">
                 <p class="font-body-md text-body-md text-on-surface-variant">
                     Don't have an account?
-                    <a class="font-label-md text-label-md text-primary hover:text-primary-container ml-1" href="signup.html">Sign Up</a>
+                    <a class="font-label-md text-label-md text-primary hover:text-primary-container ml-1 font-semibold" href="signup.html">Sign Up</a>
                 </p>
                 <p class="text-xs text-on-surface-variant mt-2">
-                    Default Test Account: <span class="font-mono text-primary">manager_test@facility.com</span> / <span class="font-mono text-primary">Password123!</span>
+                    Default Test Account: <button type="button" onclick="quickManagerLogin()" class="font-mono text-primary underline font-medium">manager_test@facility.com</button> / <span class="font-mono text-primary">Password123!</span>
                 </p>
             </div>
         </div>
@@ -213,13 +229,61 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.get("logout") === "true") {
+                if (typeof setAuthToken === "function") {
+                    setAuthToken(null, false);
+                }
+                sessionStorage.removeItem("gg_token");
+                localStorage.removeItem("gg_token");
+                localStorage.removeItem("gg_simulate_mode");
+            } else {
+                // Auto-redirect if already logged in and not explicitly forced
+                const existingToken = sessionStorage.getItem("gg_token") || localStorage.getItem("gg_token");
+                if (existingToken && !urlParams.has("force")) {
+                    window.location.href = "pages/dashboard.html";
+                    return;
+                }
+            }
+
+            // Restore remembered email
+            try {
+                const savedEmail = localStorage.getItem("gg_saved_email");
+                if (savedEmail) {
+                    const emailInput = document.getElementById("email");
+                    if (emailInput && !emailInput.value) {
+                        emailInput.value = savedEmail;
+                    }
+                }
+            } catch (e) {}
+
             if (urlParams.get("registered") === "true") {
                 const alertBox = document.getElementById("loginAlert");
                 alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-[#E8F5E9] text-[#2E7D32] border border-[#2E7D32]";
                 alertBox.innerText = "Account created successfully! Please log in with your credentials.";
                 alertBox.classList.remove("hidden");
+            } else if (urlParams.get("quick_demo") === "true") {
+                quickManagerLogin();
             }
         });
+
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById("password");
+            const eyeIcon = document.getElementById("passwordEyeIcon");
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                eyeIcon.innerText = "visibility_off";
+            } else {
+                passInput.type = "password";
+                eyeIcon.innerText = "visibility";
+            }
+        }
+
+        function quickManagerLogin() {
+            document.getElementById("email").value = "manager_test@facility.com";
+            document.getElementById("password").value = "Password123!";
+            handleLogin();
+        }
 
         function enterDemoMode() {
             try {
@@ -230,7 +294,7 @@
         }
 
         async function handleLogin(event) {
-            event.preventDefault();
+            if (event) event.preventDefault();
             const alertBox = document.getElementById("loginAlert");
             const btn = document.getElementById("loginBtn");
 
@@ -238,26 +302,59 @@
             
             const email = document.getElementById("email").value.trim();
             const password = document.getElementById("password").value;
+            const rememberMe = document.getElementById("remember-me") ? document.getElementById("remember-me").checked : true;
+
+            if (!email || !password) {
+                alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-error-container text-on-error-container border border-error";
+                alertBox.innerText = "Please enter both email and password.";
+                alertBox.classList.remove("hidden");
+                return;
+            }
 
             btn.disabled = true;
-            btn.innerText = "Logging in...";
+            btn.innerHTML = `<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Connecting to server...</span>`;
 
-            const res = await loginUser(email, password);
+            // If Render takes time on cold start, keep user informed
+            const wakeTimer = setTimeout(() => {
+                if (btn.disabled) {
+                    btn.innerHTML = `<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Waking cloud server (~30s)...</span>`;
+                }
+            }, 3000);
+
+            // Pass autoRegister = true so unknown emails are auto-provisioned seamlessly
+            const res = await loginUser(email, password, true, rememberMe);
+            clearTimeout(wakeTimer);
 
             btn.disabled = false;
             btn.innerText = "Login";
 
             if (res.ok) {
-                // Redirect to dashboard page
-                window.location.href = "pages/dashboard.html";
+                alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-[#E8F5E9] text-[#2E7D32] border border-[#2E7D32]";
+                alertBox.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                        <span>${res.data?.message || "Login successful! Redirecting to dashboard..."}</span>
+                    </div>
+                `;
+                alertBox.classList.remove("hidden");
+
+                setTimeout(() => {
+                    window.location.href = "pages/dashboard.html";
+                }, 400);
             } else {
                 const errMsg = res.data ? res.data.message : "Invalid email or password.";
                 alertBox.className = "mb-md p-sm rounded-lg text-body-md font-medium bg-error-container text-on-error-container border border-error";
                 alertBox.innerHTML = `
-                    <div>${errMsg}</div>
-                    <div class="mt-2 text-xs">
-                        Testing on GitHub Pages or local preview without backend? 
-                        <button type="button" onclick="enterDemoMode()" class="underline font-bold hover:opacity-80 ml-1">Click here to enter Demo Mode &rarr;</button>
+                    <div class="font-semibold">${errMsg}</div>
+                    <div class="mt-2.5 flex flex-col gap-1.5 text-xs">
+                        <div>
+                            <span class="font-medium">Trouble logging in?</span>
+                            <button type="button" onclick="quickManagerLogin()" class="underline font-bold text-primary hover:opacity-80 ml-1">⚡ Click here for 1-Click Fast Login &rarr;</button>
+                        </div>
+                        <div>
+                            Testing on GitHub Pages or offline? 
+                            <button type="button" onclick="enterDemoMode()" class="underline font-bold hover:opacity-80 ml-1">Click here for Demo Mode &rarr;</button>
+                        </div>
                     </div>
                 `;
                 alertBox.classList.remove("hidden");

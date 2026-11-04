@@ -30,22 +30,37 @@ const API_BASE_URL = (function () {
     return "http://localhost:5000/api";
 })();
 
-// In-memory token storage (persisted in SessionStorage when available)
-let authToken = sessionStorage.getItem("gg_token") || null;
-
-function setAuthToken(token) {
-    authToken = token;
-    if (token) {
-        sessionStorage.setItem("gg_token", token);
-    } else {
-        sessionStorage.removeItem("gg_token");
+// In-memory token storage (persisted in SessionStorage or LocalStorage when available)
+let authToken = (function() {
+    try {
+        return sessionStorage.getItem("gg_token") || localStorage.getItem("gg_token") || null;
+    } catch (e) {
+        return null;
     }
+})();
+
+function setAuthToken(token, remember = false) {
+    authToken = token;
+    try {
+        if (token) {
+            sessionStorage.setItem("gg_token", token);
+            if (remember) {
+                localStorage.setItem("gg_token", token);
+            }
+        } else {
+            sessionStorage.removeItem("gg_token");
+            localStorage.removeItem("gg_token");
+        }
+    } catch (e) {}
 }
 
 function logoutUser() {
-    setAuthToken(null);
+    setAuthToken(null, false);
+    try {
+        localStorage.removeItem("gg_simulate_mode");
+    } catch (e) {}
     const isInsidePagesFolder = window.location.pathname.includes("/pages/");
-    window.location.href = isInsidePagesFolder ? "../index.html" : "index.html";
+    window.location.href = isInsidePagesFolder ? "../index.html?logout=true" : "index.html?logout=true";
 }
 
 /**
@@ -79,12 +94,12 @@ async function ensureAuthToken() {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: "manager_test@facility.com", password: "Password123!" })
+            body: JSON.stringify({ email: "manager_test@facility.com", password: "Password123!", auto_register: true })
         });
         if (response.ok) {
             const data = await safeParseJson(response);
             if (data.access_token) {
-                setAuthToken(data.access_token);
+                setAuthToken(data.access_token, true);
                 return data.access_token;
             }
         }
@@ -114,7 +129,10 @@ async function signupUser(name, email, password) {
         });
         const data = await safeParseJson(response);
         if (response.ok && data.access_token) {
-            setAuthToken(data.access_token);
+            setAuthToken(data.access_token, true);
+            try {
+                localStorage.setItem("gg_saved_email", email);
+            } catch (e) {}
         }
         return { ok: response.ok, status: response.status, data };
     } catch (error) {
@@ -124,23 +142,28 @@ async function signupUser(name, email, password) {
 }
 
 /**
- * Log in existing user account.
+ * Log in existing user account (supports seamless auto-register).
  */
-async function loginUser(email, password) {
+async function loginUser(email, password, autoRegister = true, remember = true) {
     try {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password, auto_register: autoRegister })
         });
         const data = await safeParseJson(response);
         if (response.ok && data.access_token) {
-            setAuthToken(data.access_token);
+            setAuthToken(data.access_token, remember);
+            try {
+                if (remember) {
+                    localStorage.setItem("gg_saved_email", email);
+                }
+            } catch (e) {}
         }
         return { ok: response.ok, status: response.status, data };
     } catch (error) {
         console.error("Login network error:", error);
-        return { ok: false, data: { message: "Network error connecting to backend server. Please verify backend is running." } };
+        return { ok: false, data: { message: "Network error connecting to backend server. If Render backend was sleeping, it may take 30s to wake up." } };
     }
 }
 
