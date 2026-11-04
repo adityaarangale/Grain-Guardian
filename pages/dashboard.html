@@ -268,23 +268,11 @@
                             </div>
                             <div style="font-size: 22px; font-weight: 700; color: var(--color-text);" id="strip-gas">--
                             </div>
-                            <span style="font-size: 11px; color: var(--color-muted);" id="strip-mq2-raw-sub">MQ-135 Raw:
+                            <span style="font-size: 11px; color: var(--color-muted);" id="strip-mq2-raw-sub">MQ-2 Raw:
                                 --</span>
                         </div>
 
-                        <!-- 5. CO2 Status (Scientifically Honest Note) -->
-                        <div class="live-strip-metric">
-                            <div
-                                style="font-size: 12px; font-weight: 600; color: var(--color-muted); display: flex; align-items: center; gap: 6px;">
-                                <span style="color: var(--color-brand-green); width: 15px; height: 15px; display: flex;"
-                                    id="strip-icon-co2"></span> CO2 Sensor
-                            </div>
-                            <div style="font-size: 14px; font-weight: 600; color: #64748b; margin: 4px 0;"
-                                id="strip-co2">Not installed</div>
-                            <span style="font-size: 11px; color: var(--color-muted);">MQ-2 != CO2</span>
-                        </div>
-
-                        <!-- 6. Safe Storage Days Prediction -->
+                        <!-- 5. Safe Storage Days Prediction -->
                         <div class="live-strip-metric"
                             style="background: var(--color-brand-green-light); border-color: rgba(11, 61, 46, 0.2);">
                             <div
@@ -638,7 +626,6 @@
             document.getElementById("strip-icon-humidity").innerHTML = GrainLayout.icons.humidity;
             document.getElementById("strip-icon-gas").innerHTML = GrainLayout.icons.gas;
             document.getElementById("strip-icon-moisture").innerHTML = GrainLayout.icons.moisture;
-            document.getElementById("strip-icon-co2").innerHTML = GrainLayout.icons.gas;
             document.getElementById("strip-icon-days").innerHTML = GrainLayout.icons.ai;
 
             document.getElementById("icon-lights-header").innerHTML = GrainLayout.icons.fan;
@@ -874,7 +861,6 @@
             const moistCalBadge = document.getElementById("strip-moisture-cal-badge");
             const gasElem = document.getElementById("strip-gas");
             const mq2RawElem = document.getElementById("strip-mq2-raw-sub");
-            const co2Elem = document.getElementById("strip-co2");
             const daysElem = document.getElementById("strip-safe-days");
 
             tagElem.textContent = `${unit.location || 'Unit #1'} · ${(unit.grain_type || 'wheat').toUpperCase()}`;
@@ -900,7 +886,6 @@
 
                 gasElem.textContent = r.gas_index;
                 mq2RawElem.textContent = r.mq2_raw ? `MQ-2 Raw: ${r.mq2_raw} ADC` : `Baseline-rel`;
-                co2Elem.textContent = r.co2_status || "Not installed";
             } else {
                 tempElem.textContent = "--°C";
                 humElem.textContent = "--% RH";
@@ -908,7 +893,6 @@
                 moistRawElem.textContent = "Awaiting ADC";
                 gasElem.textContent = "--";
                 mq2RawElem.textContent = "Awaiting ADC";
-                co2Elem.textContent = "Not installed";
             }
 
             const pred = summary.latest_prediction;
