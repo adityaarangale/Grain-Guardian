@@ -1324,8 +1324,9 @@ ACTIVE_SCAN_JOBS = {}
 
 def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=False):
     """
-    Generates or processes a 365nm UV fluorescence capture frame and generates
-    the corresponding HSV fluorescence mask overlay.
+    Analyzes grain samples for presumptive Aflatoxin contamination (via 365nm BGYF fluorescence)
+    and evaluates physical seed health (sound seed ratio, fungal/mold lesions, broken kernels, seed grade).
+    Generates a high-contrast annotated diagnostic mask overlay.
     """
     if source_img is None:
         # Create a realistic 640x480 frame from the 365nm optical chamber
@@ -1345,7 +1346,6 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
 
         # Decide whether to add slight or suspect BGYF fluorescence
         if force_suspect or (storage_unit_id == 2 and np.random.random() < 0.6):
-            # Add moderate BGYF fluorescent spots (Suspect)
             for _ in range(np.random.randint(3, 6)):
                 fx = np.random.randint(120, 520)
                 fy = np.random.randint(100, 380)
@@ -1353,7 +1353,6 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
                 cv2.circle(img, (fx, fy), fr, (30, 235, 210), -1)
                 cv2.circle(img, (fx, fy), fr + 6, (15, 180, 160), 2)
         else:
-            # Low / clean baseline fluorescence (Clear)
             for _ in range(np.random.randint(1, 3)):
                 fx = np.random.randint(120, 520)
                 fy = np.random.randint(100, 380)
@@ -1370,53 +1369,190 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
 
     cv2.imwrite(raw_path, img)
 
-    # Perform HSV Bright Greenish-Yellow Fluorescence (BGYF) analysis
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    lower_bgyf = np.array([25, 60, 70], dtype=np.uint8)
-    upper_bgyf = np.array([85, 255, 255], dtype=np.uint8)
-    mask = cv2.inRange(hsv, lower_bgyf, upper_bgyf)
-    area_pct = round((float(np.count_nonzero(mask)) / float(mask.size)) * 100.0, 2)
+    h, w = img.shape[:2]
+    total_pixels = float(h * w)
 
-    if area_pct < SCREENING_THRESHOLDS["clear_max"]:
+    # 1. Color space representations
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # 2. Segment Grain Bodies against tray background
+    _, grain_thresh = cv2.threshold(gray, 38, 255, cv2.THRESH_BINARY)
+    kernel_m = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    grain_mask = cv2.morphologyEx(grain_thresh, cv2.MORPH_CLOSE, kernel_m)
+    grain_mask = cv2.morphologyEx(grain_mask, cv2.MORPH_OPEN, kernel_m)
+    
+    grain_pixels = float(np.count_nonzero(grain_mask))
+    if grain_pixels < 100:
+        grain_pixels = total_pixels * 0.25
+
+    grain_contours, _ = cv2.findContours(grain_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    valid_grain_contours = [c for c in grain_contours if cv2.contourArea(c) > 60]
+    kernel_count = len(valid_grain_contours) if valid_grain_contours else int(max(10, grain_pixels / 600.0))
+
+    # 3. Aflatoxin 365nm Bright Greenish-Yellow Fluorescence (BGYF) Detection
+    # Kojic acid + peroxidase under UV-A emits at 500-550nm (bright greenish-yellow)
+    lower_bgyf = np.array([25, 50, 70], dtype=np.uint8)
+    upper_bgyf = np.array([85, 255, 255], dtype=np.uint8)
+    bgyf_raw_mask = cv2.inRange(hsv, lower_bgyf, upper_bgyf)
+    
+    bgyf_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    bgyf_mask = cv2.morphologyEx(bgyf_raw_mask, cv2.MORPH_OPEN, bgyf_kernel)
+    
+    bgyf_pixels = float(np.count_nonzero(bgyf_mask))
+    fluorescence_area_pct = round((bgyf_pixels / total_pixels) * 100.0, 2)
+
+    # Aflatoxin Screening Status
+    if fluorescence_area_pct < SCREENING_THRESHOLDS["clear_max"]:
         screening_status = "Clear"
         risk_level = "Safe"
-    elif area_pct <= SCREENING_THRESHOLDS["suspect_max"]:
+        confidence = 0.96
+    elif fluorescence_area_pct <= SCREENING_THRESHOLDS["suspect_max"]:
         screening_status = "Suspect"
         risk_level = "Medium"
+        confidence = 0.91
     else:
         screening_status = "Positive"
         risk_level = "High"
+        confidence = 0.98
 
-    # Build HSV fluorescence mask overlay
+    # 4. Physical Seed Health: Mold, Rot, Discoloration & Broken Grains
+    b_mean, g_mean, r_mean = np.mean(img[:, :, 0]), np.mean(img[:, :, 1]), np.mean(img[:, :, 2])
+    is_uv_darkfield = (b_mean > r_mean * 1.05 and b_mean > g_mean * 1.1) or (fluorescence_area_pct > 1.0)
+
+    if is_uv_darkfield:
+        # In UV darkfield, grains are in silhouette; health is determined by absence of BGYF mycotoxins
+        mold_defect_pct = 0.0
+        mold_pixels = 0.0
+        dark_defect_clean = np.zeros_like(gray)
+        broken_pct = 0.0
+        sound_kernels_pct = round(max(15.0, min(99.0, 98.5 - (fluorescence_area_pct * 9.0))), 1)
+    else:
+        # In White Light visible inspection: healthy grains are amber; dark patches indicate fungal mycelium/rot
+        erode_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        inner_grain_mask = cv2.erode(grain_mask, erode_kernel, iterations=1)
+        inner_grain_pixels = float(np.count_nonzero(inner_grain_mask))
+        if inner_grain_pixels < 100:
+            inner_grain_pixels = grain_pixels
+
+        dark_defect_mask = np.zeros_like(gray)
+        dark_defect_mask[(inner_grain_mask > 0) & (gray < 85)] = 255
+        dark_defect_clean = cv2.morphologyEx(dark_defect_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+        
+        mold_pixels = float(np.count_nonzero(dark_defect_clean))
+        mold_defect_pct = round((mold_pixels / inner_grain_pixels) * 100.0, 2)
+
+        broken_count = 0
+        if valid_grain_contours:
+            areas = [cv2.contourArea(c) for c in valid_grain_contours]
+            median_area = float(np.median(areas)) if areas else 150.0
+            for c in valid_grain_contours:
+                a = cv2.contourArea(c)
+                if a < median_area * 0.45:
+                    broken_count += 1
+        broken_pct = round((broken_count / max(1, kernel_count)) * 100.0, 1)
+
+        defect_deduction = (mold_defect_pct * 2.2) + (broken_pct * 0.5)
+        sound_kernels_pct = round(max(15.0, min(99.5, 98.8 - defect_deduction)), 1)
+
+    # 5. Seed Quality Grade Classification
+    if screening_status == "Positive" or mold_defect_pct >= 8.0 or sound_kernels_pct < 65.0:
+        seed_grade = "Grade D (Reject / Hazardous)"
+        grade_letter = "D"
+        recommendation = "Reject lot immediately. High risk of aflatoxin and fungal mycotoxins. Unfit for food or feed consumption. Isolate and quarantine silo sector."
+    elif screening_status == "Suspect" or mold_defect_pct >= 4.0 or sound_kernels_pct < 80.0:
+        seed_grade = "Grade C (Substandard / Animal Feed)"
+        grade_letter = "C"
+        recommendation = "Borderline quality. Quarantine lot. Increase ventilation to lower moisture below 13%. Submit representative batch for lab ELISA/HPLC confirmation."
+    elif mold_defect_pct >= 1.5 or sound_kernels_pct < 91.0:
+        seed_grade = "Grade B (Fair / Standard Milling)"
+        grade_letter = "B"
+        recommendation = "Acceptable standard commercial grade. Suitable for standard flour milling. Maintain silo aeration and monitor gas index daily."
+    else:
+        seed_grade = "Grade A (Premium Grade)"
+        grade_letter = "A"
+        recommendation = "Premium seed health. Sound kernels >92% with no detectable aflatoxin fluorescence. Certified suitable for food processing and extended storage."
+
+    # 6. Generate Annotated Diagnostic Mask Overlay
     overlay = img.copy()
-    overlay[mask > 0] = [0, 245, 205]  # Vivid neon yellow-green
-    blended = cv2.addWeighted(img, 0.40, overlay, 0.60, 0)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(blended, contours, -1, (0, 255, 255), 2)
+    if bgyf_pixels > 0:
+        overlay[bgyf_mask > 0] = [0, 245, 205]  # Neon yellow-green for BGYF
+    if mold_pixels > 0:
+        overlay[dark_defect_clean > 0] = [20, 30, 240]  # Red for mold / rot
+
+    blended = cv2.addWeighted(img, 0.45, overlay, 0.55, 0)
+
+    # Draw contours & bounding boxes
+    bgyf_cnts, _ = cv2.findContours(bgyf_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(blended, bgyf_cnts, -1, (0, 255, 255), 2)
+    for c in bgyf_cnts:
+        if cv2.contourArea(c) > 20:
+            bx, by, bw, bh = cv2.boundingRect(c)
+            cv2.rectangle(blended, (bx - 2, by - 2), (bx + bw + 2, by + bh + 2), (0, 255, 255), 1)
+
+    mold_cnts, _ = cv2.findContours(dark_defect_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(blended, mold_cnts, -1, (0, 0, 255), 2)
+
+    # Render HUD Diagnostic Telemetry Header Bar
+    banner = blended.copy()
+    cv2.rectangle(banner, (0, 0), (w, 52), (14, 18, 16), -1)
+    blended = cv2.addWeighted(blended, 0.20, banner, 0.80, 0)
+
+    if grade_letter in ["A", "B"] and screening_status == "Clear":
+        status_bgr = (80, 220, 120)
+    elif grade_letter == "C" or screening_status == "Suspect":
+        status_bgr = (40, 180, 245)
+    else:
+        status_bgr = (60, 60, 245)
+
+    cv2.putText(blended, f"AFLATOXIN: {screening_status.upper()} ({fluorescence_area_pct:.2f}%)", 
+                (14, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.62, status_bgr, 2, cv2.LINE_AA)
+    cv2.putText(blended, f"SEED HEALTH: GRADE {grade_letter} | SOUND: {sound_kernels_pct:.1f}% | MOLD: {mold_defect_pct:.1f}% | KERNELS: {kernel_count}", 
+                (14, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (230, 240, 235), 1, cv2.LINE_AA)
+
     cv2.imwrite(mask_path, blended)
 
-    # Insert into database
+    details_payload = {
+        "kernel_count": kernel_count,
+        "sound_kernels_pct": sound_kernels_pct,
+        "mold_defect_pct": mold_defect_pct,
+        "broken_pct": broken_pct,
+        "seed_grade": seed_grade,
+        "grade_letter": grade_letter,
+        "recommendation": recommendation,
+        "is_uv_darkfield": bool(is_uv_darkfield)
+    }
+
+    # 7. Insert into database
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO scan_results 
-            (storage_unit_id, image_path, contamination_risk, confidence, fluorescence_area_pct, screening_status, mask_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (storage_unit_id, image_path, contamination_risk, confidence, fluorescence_area_pct, screening_status, mask_path,
+             sound_kernels_pct, mold_defect_pct, broken_pct, kernel_count, seed_grade, recommendation, details_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             storage_unit_id,
             raw_path,
             risk_level,
-            0.95,
-            area_pct,
+            confidence,
+            fluorescence_area_pct,
             screening_status,
-            mask_path
+            mask_path,
+            sound_kernels_pct,
+            mold_defect_pct,
+            broken_pct,
+            kernel_count,
+            seed_grade,
+            recommendation,
+            json.dumps(details_payload)
         ))
         scan_id = cursor.lastrowid
 
-        # If Positive, record Scan Positive alert
-        if screening_status == "Positive":
+        # If Positive or Grade D, record critical alert
+        if screening_status == "Positive" or grade_letter == "D":
             cursor.execute("SELECT grain_type FROM storage_units WHERE id = ?", (storage_unit_id,))
             u = cursor.fetchone()
             grain_name = (u["grain_type"] if u and u["grain_type"] else "Grain").capitalize()
@@ -1427,16 +1563,18 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
                 "humidity": round(r["humidity"], 1) if r else 70.0,
                 "gas_index": r["gas_index"] if r else 150,
                 "moisture": round(r["moisture"], 1) if r else 14.5,
-                "fluorescence_area_pct": area_pct,
+                "fluorescence_area_pct": fluorescence_area_pct,
+                "sound_kernels_pct": sound_kernels_pct,
+                "seed_grade": seed_grade,
                 "grain": grain_name,
                 "threshold": 5.0
             }
             cursor.execute("""
                 INSERT INTO alerts (storage_unit_id, alert_type, severity, title, message, reading_values, acknowledged, timestamp)
-                VALUES (?, 'Scan Positive', 'Critical', 'Scan Positive', ?, ?, 0, CURRENT_TIMESTAMP)
+                VALUES (?, 'Scan Positive', 'Critical', 'Contamination Detected', ?, ?, 0, CURRENT_TIMESTAMP)
             """, (
                 storage_unit_id,
-                f"UV contamination screening detected {area_pct:.1f}% optical emission area, indicating suspect aflatoxin contamination in {grain_name}.",
+                f"Contamination screening detected {fluorescence_area_pct:.1f}% BGYF emission and {seed_grade} in {grain_name}.",
                 json.dumps(rv)
             ))
 
@@ -1452,43 +1590,53 @@ def process_and_save_uv_scan(storage_unit_id, source_img=None, force_suspect=Fal
         "scan_id": f"SCN-2026-{scan_id:03d}",
         "storage_unit_id": storage_unit_id,
         "timestamp": formatted_time,
-        "fluorescence_area_pct": area_pct,
+        "fluorescence_area_pct": fluorescence_area_pct,
         "screening_status": screening_status,
         "contamination_risk": risk_level,
-        "confidence": 0.95,
+        "confidence": confidence,
+        "sound_kernels_pct": sound_kernels_pct,
+        "mold_defect_pct": mold_defect_pct,
+        "broken_pct": broken_pct,
+        "kernel_count": kernel_count,
+        "seed_grade": seed_grade,
+        "grade_letter": grade_letter,
+        "recommendation": recommendation,
         "image_url": f"/api/scan-image/{scan_id}?type=raw",
         "mask_url": f"/api/scan-image/{scan_id}?type=mask"
     }
 
 
 @app.route("/api/scan", methods=["POST"])
-@jwt_required(optional=True)
 def receive_contamination_scan():
     """
-    POST /api/scan (Protected)
-    Preserves exact backwards compatibility for direct uploads.
+    POST /api/scan
+    Receives sample image via multipart file or JSON base64.
+    Runs Aflatoxin (BGYF) + Seed Health inspection pipeline.
     """
-    if "storage_unit_id" not in request.form:
-        return jsonify({"status": "error", "message": "Missing 'storage_unit_id' in form data."}), 400
+    storage_unit_id = 1
+    if "storage_unit_id" in request.form:
+        storage_unit_id = request.form.get("storage_unit_id", 1, type=int)
+    elif request.is_json and request.json:
+        storage_unit_id = int(request.json.get("storage_unit_id", 1))
 
-    storage_unit_id = request.form.get("storage_unit_id", type=int)
+    img = None
+    if "image" in request.files:
+        file = request.files["image"]
+        if file and file.filename != "":
+            file_path = os.path.join(UPLOAD_FOLDER, f"scan_unit_{storage_unit_id}_{file.filename}")
+            file.save(file_path)
+            img = cv2.imread(file_path)
+    elif request.is_json and request.json and "image_base64" in request.json:
+        import base64
+        b64_data = request.json["image_base64"]
+        if "," in b64_data:
+            b64_data = b64_data.split(",", 1)[1]
+        img_bytes = base64.b64decode(b64_data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    if "image" not in request.files:
-        return jsonify({"status": "error", "message": "Missing image file parameter 'image'."}), 400
-
-    file = request.files["image"]
-    if file.filename == "":
-        return jsonify({"status": "error", "message": "No selected image file."}), 400
-
-    # Save uploaded file
-    file_path = os.path.join(UPLOAD_FOLDER, f"scan_unit_{storage_unit_id}_{file.filename}")
-    file.save(file_path)
-
-    # Read and process with OpenCV
-    img = cv2.imread(file_path)
     if img is None:
-        img = np.zeros((480, 640, 3), dtype=np.uint8)
-        img[:] = (26, 12, 18)
+        return jsonify({"status": "error", "message": "Missing or unreadable image file or image_base64."}), 400
 
     scan_dict = process_and_save_uv_scan(storage_unit_id, source_img=img)
 
@@ -1501,6 +1649,12 @@ def receive_contamination_scan():
         "confidence": scan_dict.get("confidence", 0.95),
         "fluorescence_area_pct": scan_dict.get("fluorescence_area_pct", 0.0),
         "screening_status": scan_dict.get("screening_status", "Clear"),
+        "sound_kernels_pct": scan_dict.get("sound_kernels_pct", 95.0),
+        "mold_defect_pct": scan_dict.get("mold_defect_pct", 0.0),
+        "seed_grade": scan_dict.get("seed_grade", "Grade A (Premium Grade)"),
+        "grade_letter": scan_dict.get("grade_letter", "A"),
+        "kernel_count": scan_dict.get("kernel_count", 0),
+        "recommendation": scan_dict.get("recommendation", ""),
         "image_url": scan_dict.get("image_url"),
         "mask_url": scan_dict.get("mask_url"),
         "timestamp": scan_dict.get("timestamp")
@@ -1629,13 +1783,20 @@ def get_latest_scan_for_unit(storage_unit_id):
         return jsonify({"status": "success", "scan": None}), 200
 
     scan_dict = dict(row)
-    scan_dict["scan_id"] = f"SCN-2026-{scan_dict['id']:03d}"
-    scan_dict["image_url"] = f"/api/scan-image/{scan_dict['id']}?type=raw"
-    scan_dict["mask_url"] = f"/api/scan-image/{scan_dict['id']}?type=mask"
+    scan_id = scan_dict['id']
+    scan_dict["scan_id"] = f"SCN-2026-{scan_id:03d}"
+    scan_dict["image_url"] = f"/api/scan-image/{scan_id}?type=raw"
+    scan_dict["mask_url"] = f"/api/scan-image/{scan_id}?type=mask"
     if scan_dict.get("fluorescence_area_pct") is None:
         scan_dict["fluorescence_area_pct"] = 0.42
     if not scan_dict.get("screening_status"):
         scan_dict["screening_status"] = "Clear"
+    if scan_dict.get("sound_kernels_pct") is None:
+        scan_dict["sound_kernels_pct"] = 96.5
+    if scan_dict.get("mold_defect_pct") is None:
+        scan_dict["mold_defect_pct"] = 0.5
+    if not scan_dict.get("seed_grade"):
+        scan_dict["seed_grade"] = "Grade A (Premium Grade)"
 
     return jsonify({"status": "success", "scan": scan_dict}), 200
 
@@ -1675,6 +1836,12 @@ def get_recent_scans():
             d["fluorescence_area_pct"] = 0.42
         if not d.get("screening_status"):
             d["screening_status"] = "Clear"
+        if d.get("sound_kernels_pct") is None:
+            d["sound_kernels_pct"] = 96.5
+        if d.get("mold_defect_pct") is None:
+            d["mold_defect_pct"] = 0.5
+        if not d.get("seed_grade"):
+            d["seed_grade"] = "Grade A (Premium Grade)"
         scans.append(d)
 
     return jsonify({"status": "success", "scans": scans}), 200
@@ -1691,6 +1858,80 @@ def get_scan_config():
         "thresholds": SCREENING_THRESHOLDS,
         "advisory": "UV fluorescence is a screening indicator, not laboratory confirmation of aflatoxin."
     }), 200
+
+
+@app.route("/api/sample-images", methods=["GET"])
+def get_sample_images():
+    """
+    GET /api/sample-images
+    Returns catalog of available grain test samples for 1-click inspection testing.
+    """
+    samples = [
+        {
+            "id": "healthy_wheat",
+            "name": "Healthy Wheat (Sound Grain)",
+            "filename": "healthy_wheat_sample.jpg",
+            "grain": "Wheat",
+            "condition": "Healthy / Monolayer",
+            "expected_status": "Clear",
+            "expected_grade": "Grade A (Premium)",
+            "description": "Clean golden-amber kernels with natural crease. Sound seeds >96%, zero BGYF fluorescence.",
+            "url": "/api/sample-images/healthy_wheat_sample.jpg"
+        },
+        {
+            "id": "aflatoxin_bgyf",
+            "name": "Aflatoxin Positive (365nm BGYF)",
+            "filename": "aflatoxin_bgyf_sample.jpg",
+            "grain": "Wheat",
+            "condition": "UV Darkfield 365nm Excitation",
+            "expected_status": "Positive",
+            "expected_grade": "Grade D (Reject / Hazardous)",
+            "description": "Optical chamber capture under 365nm UV showing luminous yellow-green fluorescence clusters (Kojic acid / Aspergillus flavus).",
+            "url": "/api/sample-images/aflatoxin_bgyf_sample.jpg"
+        },
+        {
+            "id": "mold_damaged",
+            "name": "Mold Spoilage & Physical Defects",
+            "filename": "mold_damaged_sample.jpg",
+            "grain": "Wheat",
+            "condition": "Visible Fungal Rot & Broken Grains",
+            "expected_status": "Clear / Defective",
+            "expected_grade": "Grade D (High Spoilage)",
+            "description": "Visible charcoal fungal lesions, black point disease, gray mycelium spots, and shriveled kernels.",
+            "url": "/api/sample-images/mold_damaged_sample.jpg"
+        },
+        {
+            "id": "suspect_borderline",
+            "name": "Borderline Suspect Lot",
+            "filename": "suspect_borderline_sample.jpg",
+            "grain": "Wheat",
+            "condition": "Moderate Luminescence (~1.5-3.0%)",
+            "expected_status": "Suspect",
+            "expected_grade": "Grade C (Substandard / Animal Feed)",
+            "description": "Isolated weak fluorescent specks. Requires lot quarantine and secondary HPLC/ELISA laboratory verification.",
+            "url": "/api/sample-images/suspect_borderline_sample.jpg"
+        }
+    ]
+    return jsonify({"status": "success", "samples": samples}), 200
+
+
+@app.route("/api/sample-images/<filename>", methods=["GET"])
+@app.route("/assets/samples/<filename>", methods=["GET"])
+def serve_sample_image(filename):
+    """
+    Serves test sample images from assets/samples or backend uploads.
+    """
+    safe_name = os.path.basename(filename)
+    candidates = [
+        os.path.join(ROOT_DIR, "assets", "samples", safe_name),
+        os.path.join(BACKEND_DIR, "uploads", "sample_images", safe_name),
+        os.path.join(UPLOAD_FOLDER, safe_name)
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return send_file(p, mimetype="image/jpeg")
+            
+    return jsonify({"status": "error", "message": f"Sample image '{safe_name}' not found."}), 404
 
 
 

@@ -65,6 +65,13 @@ CREATE TABLE IF NOT EXISTS scan_results (
     confidence REAL NOT NULL,
     fluorescence_area_pct REAL DEFAULT 0.0,
     screening_status TEXT DEFAULT 'Clear',
+    sound_kernels_pct REAL DEFAULT 95.0,
+    mold_defect_pct REAL DEFAULT 0.0,
+    broken_pct REAL DEFAULT 0.0,
+    kernel_count INTEGER DEFAULT 0,
+    seed_grade TEXT DEFAULT 'Grade A (Premium Grade)',
+    recommendation TEXT DEFAULT '',
+    details_json TEXT DEFAULT '{}',
     FOREIGN KEY (storage_unit_id) REFERENCES storage_units (id)
 );
 

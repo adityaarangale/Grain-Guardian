@@ -49,6 +49,20 @@ def init_db(db_path=None):
         cursor.execute("ALTER TABLE scan_results ADD COLUMN fluorescence_area_pct REAL DEFAULT 0.0")
     if "screening_status" not in existing_scan_cols:
         cursor.execute("ALTER TABLE scan_results ADD COLUMN screening_status TEXT DEFAULT 'Clear'")
+    if "sound_kernels_pct" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN sound_kernels_pct REAL DEFAULT 95.0")
+    if "mold_defect_pct" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN mold_defect_pct REAL DEFAULT 0.0")
+    if "broken_pct" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN broken_pct REAL DEFAULT 0.0")
+    if "kernel_count" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN kernel_count INTEGER DEFAULT 0")
+    if "seed_grade" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN seed_grade TEXT DEFAULT 'Grade A (Premium Grade)'")
+    if "recommendation" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN recommendation TEXT DEFAULT ''")
+    if "details_json" not in existing_scan_cols:
+        cursor.execute("ALTER TABLE scan_results ADD COLUMN details_json TEXT DEFAULT '{}'")
 
     # Migrations for sensor_readings: raw_moisture and mq2_raw
     cursor.execute("PRAGMA table_info(sensor_readings)")
