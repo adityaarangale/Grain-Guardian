@@ -23,15 +23,16 @@ bool initSensors() {
 /**
  * Capacitive Grain Moisture Calibration Routine:
  * Converts raw ESP32 ADC values (0 - 4095) into grain moisture percentage.
+ * If sensor does not sense anything (disconnected / near 0), returns 0.0.
  */
 float calibrateMoisture(int rawValue) {
-  if (rawValue <= 0) return 0.0f;
+  if (rawValue <= 100) return 0.0f;
 
   // Linear interpolation across calibrated boundaries
   float moisturePct = map(rawValue, CALIB_MOISTURE_DRY_AIR, CALIB_MOISTURE_SATURATED, 80, 250) / 10.0f;
 
-  // Boundary safety clamp
-  if (moisturePct < 5.0f) moisturePct = 5.0f;
+  // Boundary clamp
+  if (moisturePct < 0.0f) moisturePct = 0.0f;
   if (moisturePct > 35.0f) moisturePct = 35.0f;
 
   return moisturePct;
@@ -40,16 +41,18 @@ float calibrateMoisture(int rawValue) {
 /**
  * Normalized MQ-2 Gas-Response Index:
  * Converts raw ADC into response index relative to clean-air baseline.
+ * If sensor does not sense anything, returns 0.
  */
 int calculateMq2Index(int rawValue) {
-  if (rawValue <= 0) return 0;
+  if (rawValue <= 40) return 0;
   // Normalized metric: scaled relative to clean-air baseline
   return rawValue;
 }
 
 /**
  * Reads all hardware sensors and packages readings into a SensorData struct.
- * Non-blocking safe: uses fallback defaults if a sensor read fails temporarily.
+ * If sensor does not sense anything or is disconnected, sets 0 on output.
+ * If values are received from sensor, outputs actual measured values.
  */
 SensorData readAllSensors() {
   SensorData data;
@@ -60,26 +63,37 @@ SensorData readAllSensors() {
   float temp = dht.readTemperature();
   float hum = dht.readHumidity();
 
-  if (!isnan(temp) && !isnan(hum)) {
+  if (!isnan(temp) && !isnan(hum) && temp > -40.0f && hum >= 0.0f) {
     data.temperature = temp;
     data.humidity = hum;
+    data.dhtValid = true;
   } else {
-    data.temperature = 25.0f; // Safe nominal fallback if 1-wire communication glitched
-    data.humidity = 60.0f;
-    Serial.println("[DHT22] Warning: Failed to read from sensor, using safe defaults.");
+    // If sensor does not sense anything or disconnected, set 0
+    data.temperature = 0.0f;
+    data.humidity = 0.0f;
+    data.dhtValid = false;
+    Serial.println("[DHT22] Warning: Sensor not sensing or disconnected (reporting 0).");
   }
 
   // 2. Capacitive Grain Moisture Probe V1.2
   int rawMoist = analogRead(MOISTURE_ANALOG_PIN);
   data.rawMoisture = rawMoist;
-  data.moisture = calibrateMoisture(rawMoist);
-  // Mark calibrated if raw reading falls within realistic operating bounds
-  data.isCalibrated = (rawMoist > 800 && rawMoist < 3800);
+  if (rawMoist <= 100) {
+    data.moisture = 0.0f;
+    data.isCalibrated = false;
+  } else {
+    data.moisture = calibrateMoisture(rawMoist);
+    data.isCalibrated = (rawMoist > 800 && rawMoist < 3800);
+  }
 
   // 3. MQ-2 Gas Sensor Analog Output
   int rawGas = analogRead(MQ2_ANALOG_PIN);
   data.mq2Raw = rawGas;
-  data.gasIndex = calculateMq2Index(rawGas);
+  if (rawGas <= 40) {
+    data.gasIndex = 0;
+  } else {
+    data.gasIndex = calculateMq2Index(rawGas);
+  }
 
   return data;
 }

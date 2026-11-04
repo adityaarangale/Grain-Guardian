@@ -321,8 +321,42 @@ void updateLcdDisplay() {
 
   if (currentLcdState == LCD_NORMAL_PAGE_1) {
     // Page 1: Temperature & Humidity / Moisture & Gas
-    snprintf(line0, sizeof(line0), "T:%.1fC H:%.0f%%   ", latestReadings.temperature, latestReadings.humidity);
-    snprintf(line1, sizeof(line1), "M:%.1f%% G:%-4d   ", latestReadings.moisture, latestReadings.gasIndex);
+    // Shows actual values when sensed; displays 0 when sensor does not sense anything / disconnected
+    char tempStr[10];
+    char humStr[10];
+    char moistStr[10];
+    char gasStr[10];
+
+    // Temperature: Show value if sensed, otherwise 0
+    if (latestReadings.dhtValid && latestReadings.temperature > 0.0f) {
+      snprintf(tempStr, sizeof(tempStr), "%.1fC", latestReadings.temperature);
+    } else {
+      snprintf(tempStr, sizeof(tempStr), "0");
+    }
+
+    // Humidity: Show value if sensed, otherwise 0
+    if (latestReadings.dhtValid && latestReadings.humidity > 0.0f) {
+      snprintf(humStr, sizeof(humStr), "%.0f%%", latestReadings.humidity);
+    } else {
+      snprintf(humStr, sizeof(humStr), "0");
+    }
+
+    // Moisture: Show value if sensed, otherwise 0
+    if (latestReadings.moisture > 0.0f) {
+      snprintf(moistStr, sizeof(moistStr), "%.1f%%", latestReadings.moisture);
+    } else {
+      snprintf(moistStr, sizeof(moistStr), "0");
+    }
+
+    // Gas: Show value if sensed, otherwise 0
+    if (latestReadings.gasIndex > 0) {
+      snprintf(gasStr, sizeof(gasStr), "%d", latestReadings.gasIndex);
+    } else {
+      snprintf(gasStr, sizeof(gasStr), "0");
+    }
+
+    snprintf(line0, sizeof(line0), "T:%-5s  H:%-5s", tempStr, humStr);
+    snprintf(line1, sizeof(line1), "M:%-5s  G:%-5s", moistStr, gasStr);
   } else {
     // Page 2: Grain Info & Active Light Status
     snprintf(line0, sizeof(line0), "GRAIN: %-9s", latestReadings.grainType.c_str());
