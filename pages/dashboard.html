@@ -470,46 +470,64 @@
                 </div>
             </div>
 
-            <!-- ROW 4: Grain Risk Assessment Card (Col-12) -->
+            <!-- ROW 4: Grain Risk & AI Prediction Card (Col-12) -->
             <div class="col-12">
                 <div class="theme-card" id="grain-risk-assessment-card"
                     style="border-left: 4px solid var(--color-risk-safe);">
-                    <div class="theme-card-header" style="margin-bottom: 12px;">
+                    <div class="theme-card-header" style="margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                         <div class="theme-card-title">
                             <span style="color: var(--color-brand-green); width: 20px; height: 20px; display: flex;"
                                 id="icon-risk-card"></span>
-                            <span>Agronomic Spoilage Risk Assessment</span>
+                            <span>AI Spoilage &amp; Risk Assessment Engine</span>
                             <span id="risk-provisional-pill" class="provisional-badge"
                                 style="display: none;">Provisional Assessment</span>
                         </div>
-                        <div id="risk-main-badge-slot"></div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div id="risk-main-badge-slot"></div>
+                            <a href="ai-prediction.html" class="btn-outline btn-sm"
+                                style="font-size: 11px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;"
+                                title="Open full AI Spoilage Timeline &amp; Feature Attribution">
+                                Deep AI Analytics &rarr;
+                            </a>
+                        </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: center;">
+                    <div style="display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: stretch;">
+                        <!-- AI Predictive Model Metric Box -->
                         <div
-                            style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 16px; text-align: center;">
-                            <span
-                                style="font-size: 12px; font-weight: 600; color: var(--color-muted); text-transform: uppercase;">Rule-Based
-                                Risk Score</span>
-                            <div style="font-size: 38px; font-weight: 700; color: var(--color-text); margin: 6px 0;"
+                            style="background: #F8FAFC; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 16px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--color-brand-green); text-transform: uppercase; letter-spacing: 0.05em;">AI Spoilage Probability</span>
+                            </div>
+                            <div style="font-size: 40px; font-weight: 800; color: var(--color-text); line-height: 1.1; margin: 4px 0;"
                                 id="risk-score-val">--%</div>
-                            <span style="font-size: 11px; color: var(--color-muted); display: block;"
-                                id="risk-score-cat">Category: Safe</span>
+                            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 6px; font-size: 11px;">
+                                <span style="color: var(--color-muted);" id="risk-score-cat">Category: Safe</span>
+                                <span style="color: var(--color-border);">&bull;</span>
+                                <span style="font-weight: 600; color: var(--color-brand-green);" id="ai-safe-days-badge">-- Days Left</span>
+                            </div>
                         </div>
 
-                        <div>
-                            <span
-                                style="font-size: 12px; font-weight: 700; color: var(--color-text); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Contributing
-                                Sensor Factors:</span>
-                            <ul id="risk-factors-list"
-                                style="font-size: 13px; color: var(--color-text); line-height: 1.6; padding-left: 18px; margin: 0 0 10px 0;">
-                                <li>Awaiting sensor telemetry verification...</li>
-                            </ul>
+                        <!-- Contributing Factors & AI Recommendation -->
+                        <div style="display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <!-- AI Agronomic Advisory Box -->
+                                <div id="ai-recommendation-box"
+                                    style="background: #f1f8f4; border: 1px solid #bce3cb; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12px; color: #166534; line-height: 1.45;">
+                                    <strong>AI Recommendation:</strong> <span id="ai-recommendation-text">Awaiting sensor telemetry verification...</span>
+                                </div>
+
+                                <span
+                                    style="font-size: 11px; font-weight: 700; color: var(--color-text); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Contributing
+                                    Microclimate Factors:</span>
+                                <ul id="risk-factors-list"
+                                    style="font-size: 12px; color: var(--color-text); line-height: 1.5; padding-left: 18px; margin: 0 0 8px 0;">
+                                    <li>Awaiting sensor telemetry verification...</li>
+                                </ul>
+                            </div>
                             <p
                                 style="font-size: 11px; color: var(--color-muted); margin: 0; line-height: 1.45; border-top: 1px solid var(--color-border-subtle); padding-top: 6px;">
-                                <em>Scientific Scope:</em> Rule-based estimation derived from temperature, relative
-                                humidity, capacitive moisture, and MQ-2 respiratory gas index. MQ-2 does not detect
-                                aflatoxin. UV camera captures optical fluorescence screening indicators.
+                                <em>Dual-Engine Architecture:</em> Multi-variate non-linear AI model (35% Moisture, 25% Humidity, 25% Temperature, 15% Gas) + Deterministic agronomic thresholds.
                             </p>
                         </div>
                     </div>
@@ -723,7 +741,7 @@
                 updateRelayControls(summary.relays, summary.devices);
 
                 // 5. Update Grain Risk Assessment Card
-                updateGrainRiskCard(summary.risk, summary.latest_sensor_reading);
+                updateGrainRiskCard(summary.risk, summary.latest_sensor_reading, summary.latest_prediction);
 
                 // 6. Update KPI Counts & Active Units Table
                 try {
@@ -1016,7 +1034,7 @@
             }
         }
 
-        function updateGrainRiskCard(risk, reading) {
+        function updateGrainRiskCard(risk, reading, prediction) {
             if (!risk) return;
 
             const badgeSlot = document.getElementById("risk-main-badge-slot");
@@ -1025,11 +1043,38 @@
             const scoreCat = document.getElementById("risk-score-cat");
             const factorsList = document.getElementById("risk-factors-list");
             const riskCard = document.getElementById("grain-risk-assessment-card");
+            const daysBadge = document.getElementById("ai-safe-days-badge");
+            const recText = document.getElementById("ai-recommendation-text");
 
-            const level = risk.risk_level || "Safe";
+            // Evaluate Risk Level (prioritizing AI prediction if available)
+            const level = (prediction && prediction.risk_level) ? prediction.risk_level : (risk.risk_level || "Safe");
             badgeSlot.innerHTML = GrainLayout.getRiskBadgeHtml(level);
-            scoreVal.textContent = `${risk.risk_score || 0}%`;
-            scoreCat.textContent = `Category: ${level}`;
+
+            // AI Spoilage Probability
+            if (prediction && prediction.spoilage_probability !== undefined) {
+                const pct = Math.round(prediction.spoilage_probability * 100);
+                scoreVal.textContent = `${pct}%`;
+            } else if (risk.risk_score !== undefined) {
+                scoreVal.textContent = `${risk.risk_score}%`;
+            } else {
+                scoreVal.textContent = `--%`;
+            }
+
+            scoreCat.textContent = `Risk: ${level}`;
+
+            // Safe Days Left
+            if (prediction && prediction.safe_days_remaining !== undefined) {
+                if (daysBadge) daysBadge.textContent = `${prediction.safe_days_remaining} Days Safe`;
+            }
+
+            // AI Agronomic Recommendation
+            if (prediction && prediction.recommendation) {
+                if (recText) recText.textContent = prediction.recommendation;
+            } else if (risk.contributing_factors && risk.contributing_factors.length > 0) {
+                if (recText) recText.textContent = risk.contributing_factors[0];
+            } else {
+                if (recText) recText.textContent = "All microclimate telemetry within safe storage thresholds.";
+            }
 
             if (risk.is_provisional) {
                 provPill.style.display = "inline-flex";
@@ -1043,7 +1088,7 @@
             else if (level === "Medium") riskCard.style.borderLeftColor = "var(--color-risk-medium)";
             else riskCard.style.borderLeftColor = "var(--color-risk-safe)";
 
-            // Contributing factors
+            // Contributing microclimate factors
             if (Array.isArray(risk.contributing_factors) && risk.contributing_factors.length > 0) {
                 factorsList.innerHTML = risk.contributing_factors.map(f => `<li>${f}</li>`).join("");
             } else {
