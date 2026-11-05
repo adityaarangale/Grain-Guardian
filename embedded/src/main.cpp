@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <Wire.h>
@@ -20,6 +21,9 @@
 
 // Instantiate I2C LCD Display (16x2)
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, LCD_COLS, LCD_ROWS);
+
+// WiFiMulti instance for automatic multi-network roaming and reconnection
+WiFiMulti wifiMulti;
 
 // Hardware Actuation State (Default: White Light ON, UV Light OFF)
 bool currentWhiteLight = true;
@@ -105,30 +109,126 @@ void setLights(bool whiteOn, bool uvOn) {
   }
 }
 
+const char* getWiFiStatusString(wl_status_t status) {
+  switch (status) {
+    case WL_IDLE_STATUS:     return "IDLE_STATUS (Searching/Waiting)";
+    case WL_NO_SSID_AVAIL:   return "NO_SSID_AVAIL (SSID not found! Check 2.4 GHz band)";
+    case WL_SCAN_COMPLETED:  return "SCAN_COMPLETED";
+    case WL_CONNECTED:       return "CONNECTED";
+    case WL_CONNECT_FAILED:  return "CONNECT_FAILED (Password incorrect?)";
+    case WL_CONNECTION_LOST: return "CONNECTION_LOST (Signal dropped)";
+    case WL_DISCONNECTED:    return "DISCONNECTED (Not connected)";
+    default:                 return "UNKNOWN_STATUS";
+  }
+}
+
 /**
- * Connects to local Wi-Fi with bounded retry (max 15 attempts).
- * Never blocks indefinitely and never prints sensitive credentials.
+ * Connects to Wi-Fi using WiFiMulti with 2.4 GHz channel diagnostics and LCD feedback.
+ * Supports up to 3 configured networks with auto-fallback and generous timeout (up to 20s).
  */
 void setupWiFi() {
-  Serial.print("[WiFi] Connecting to Wi-Fi SSID: ");
-  Serial.println(WIFI_SSID);
+  Serial.println("\n[WiFi] ==========================================");
+  Serial.println("[WiFi]   Initializing Wi-Fi Radio (2.4 GHz)");
+  Serial.println("[WiFi] ==========================================");
 
+  // Display initial Wi-Fi setup status on I2C LCD
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("WiFi Connecting ");
+  lcd.setCursor(0, 1);
+  lcd.print("SSID: ");
+  lcd.print(WIFI_SSID);
+
+  // Reset radio to known clean station state
+  WiFi.disconnect(true);
+  delay(100);
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  WiFi.setSleep(false); // Disable modem sleep to prevent dropped hotspot packets
+
+  // 1. Diagnostic scan of nearby 2.4 GHz Wi-Fi networks
+  Serial.println("[WiFi] Scanning nearby 2.4 GHz Wi-Fi networks...");
+  int n = WiFi.scanNetworks();
+  if (n <= 0) {
+    Serial.println("[WiFi] No networks found in scan! Ensure router or mobile hotspot is broadcasting on 2.4 GHz.");
+  } else {
+    Serial.printf("[WiFi] Found %d Wi-Fi networks in range:\n", n);
+    bool primaryFound = false;
+    for (int i = 0; i < n && i < 10; ++i) {
+      Serial.printf("  (%d) %-20s [RSSI: %4d dBm, Ch: %2d]\n",
+                    i + 1, WiFi.SSID(i).c_str(), WiFi.RSSI(i), WiFi.channel(i));
+      if (WiFi.SSID(i).equals(WIFI_SSID)) {
+        primaryFound = true;
+      }
+    }
+    if (primaryFound) {
+      Serial.printf("[WiFi] >> Target SSID '%s' IS DETECTED in the air! Proceeding to connect...\n", WIFI_SSID);
+    } else {
+      Serial.printf("[WiFi] >> WARNING: Target SSID '%s' WAS NOT FOUND in scan!\n", WIFI_SSID);
+      Serial.println("[WiFi] >> NOTE: If using a phone hotspot, ensure:");
+      Serial.println("[WiFi]    - iOS: Settings -> Personal Hotspot -> 'Maximize Compatibility' = ON");
+      Serial.println("[WiFi]    - Android: Hotspot Settings -> AP Band = '2.4 GHz'");
+    }
+  }
+
+  // 2. Register known networks with WiFiMulti
+  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+#ifdef WIFI_SSID_2
+  if (strlen(WIFI_SSID_2) > 0) wifiMulti.addAP(WIFI_SSID_2, WIFI_PASSWORD_2);
+#endif
+#ifdef WIFI_SSID_3
+  if (strlen(WIFI_SSID_3) > 0) wifiMulti.addAP(WIFI_SSID_3, WIFI_PASSWORD_3);
+#endif
+
+  // Direct begin for robust initial connection
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
+  // 3. Wait up to 40 attempts (20 seconds) with live LCD animation
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 15) {
-    delay(400);
+  const int maxAttempts = 40;
+  while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
+    delay(500);
     Serial.print(".");
     attempts++;
+
+    // Animated dots on LCD Line 0
+    lcd.setCursor(14, 0);
+    switch (attempts % 4) {
+      case 0: lcd.print("   "); break;
+      case 1: lcd.print(".  "); break;
+      case 2: lcd.print(".. "); break;
+      case 3: lcd.print("..."); break;
+    }
   }
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\n[WiFi] Connected successfully!");
     Serial.print("[WiFi] Assigned IP Address: ");
     Serial.println(WiFi.localIP());
+    Serial.print("[WiFi] Signal Strength (RSSI): ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
+
+    // Success screen on LCD
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Connected! ");
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP().toString());
+    delay(1500);
   } else {
-    Serial.println("\n[WiFi] Initial connection failed. Continuing in local autonomous mode...");
+    wl_status_t finalStatus = WiFi.status();
+    Serial.printf("\n[WiFi] Initial connection failed! Status: %s\n", getWiFiStatusString(finalStatus));
+    Serial.println("[WiFi] ESP32 will continue in local autonomous mode and auto-retry in the background.");
+
+    // Failure screen on LCD
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi FAILED!    ");
+    lcd.setCursor(0, 1);
+    lcd.print("Local Mode (NoW)");
+    delay(1500);
   }
 }
 
@@ -140,8 +240,19 @@ void maintainWiFiConnection() {
     unsigned long now = millis();
     if (now - lastWifiRetryTime >= WIFI_RETRY_INTERVAL_MS) {
       lastWifiRetryTime = now;
-      Serial.println("[WiFi] Re-attempting background connection...");
-      WiFi.reconnect();
+      Serial.println("[WiFi] Background reconnect attempt via WiFiMulti...");
+
+      if (wifiMulti.run(4000) == WL_CONNECTED) {
+        Serial.print("[WiFi] Reconnected successfully! IP: ");
+        Serial.println(WiFi.localIP());
+        triggerLcdAlert("WiFi Reconnected");
+      } else {
+        // Fallback re-issue begin
+        WiFi.disconnect(false);
+        delay(50);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        Serial.printf("[WiFi] Background reconnect status: %s\n", getWiFiStatusString(WiFi.status()));
+      }
     }
   }
 }
@@ -355,15 +466,17 @@ void updateLcdDisplay() {
       snprintf(gasStr, sizeof(gasStr), "0");
     }
 
-    snprintf(line0, sizeof(line0), "T:%-5s  H:%-5s", tempStr, humStr);
+    const char* wifiTag = (WiFi.status() == WL_CONNECTED) ? "[W]" : "[!]";
+    snprintf(line0, sizeof(line0), "T:%-4s H:%-4s %s", tempStr, humStr, wifiTag);
     snprintf(line1, sizeof(line1), "M:%-5s  G:%-5s", moistStr, gasStr);
   } else {
-    // Page 2: Grain Info & Active Light Status
+    // Page 2: Grain Info & Active Light Status + Wi-Fi Connectivity
     snprintf(line0, sizeof(line0), "GRAIN: %-9s", latestReadings.grainType.c_str());
+    const char* wifiState = (WiFi.status() == WL_CONNECTED) ? "ONLINE" : "NO-NET";
     if (currentUvLight) {
-      snprintf(line1, sizeof(line1), "LIGHT: UV ON    ");
+      snprintf(line1, sizeof(line1), "L:UV-ON  W:%-6s", wifiState);
     } else {
-      snprintf(line1, sizeof(line1), "LIGHT: WHITE ON ");
+      snprintf(line1, sizeof(line1), "L:WH-ON  W:%-6s", wifiState);
     }
   }
 

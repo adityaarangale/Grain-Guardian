@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include "esp_camera.h"
 #include "esp_http_server.h"
@@ -19,6 +20,9 @@
   #define WIFI_SSID "AA"
   #define WIFI_PASSWORD "1357924680"
 #endif
+
+// WiFiMulti instance for automatic multi-network roaming
+WiFiMulti wifiMulti;
 
 // HTTP Stream Server Instance
 httpd_handle_t stream_httpd = NULL;
@@ -127,20 +131,62 @@ void startCameraServer() {
   }
 }
 
+const char* getWiFiStatusString(wl_status_t status) {
+  switch (status) {
+    case WL_IDLE_STATUS:     return "IDLE_STATUS (Searching/Waiting)";
+    case WL_NO_SSID_AVAIL:   return "NO_SSID_AVAIL (SSID not found! Check 2.4 GHz band)";
+    case WL_SCAN_COMPLETED:  return "SCAN_COMPLETED";
+    case WL_CONNECTED:       return "CONNECTED";
+    case WL_CONNECT_FAILED:  return "CONNECT_FAILED (Password incorrect?)";
+    case WL_CONNECTION_LOST: return "CONNECTION_LOST (Signal dropped)";
+    case WL_DISCONNECTED:    return "DISCONNECTED (Not connected)";
+    default:                 return "UNKNOWN_STATUS";
+  }
+}
+
 /**
- * Connects to local Wi-Fi with bounded retry.
+ * Connects to local Wi-Fi with multi-network roaming and 2.4 GHz diagnostics.
  */
 void setupWiFi() {
-  Serial.print("[WiFi] Connecting to Wi-Fi SSID: ");
-  Serial.println(WIFI_SSID);
+  Serial.println("\n[WiFi] ==========================================");
+  Serial.println("[WiFi]   ESP32-CAM Wi-Fi Radio (2.4 GHz)");
+  Serial.println("[WiFi] ==========================================");
 
+  WiFi.disconnect(true);
+  delay(100);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false); // Disable modem sleep to prevent dropped hotspot packets
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  WiFi.setSleep(false); // Critical on ESP32-CAM to prevent brownouts/dropped frames
+
+  // 1. Diagnostic scan of nearby 2.4 GHz networks
+  Serial.println("[WiFi] Scanning available 2.4 GHz Wi-Fi networks in range...");
+  int n = WiFi.scanNetworks();
+  if (n <= 0) {
+    Serial.println("[WiFi] No networks found in scan! Ensure 2.4 GHz hotspot is active.");
+  } else {
+    Serial.printf("[WiFi] Found %d Wi-Fi networks in range:\n", n);
+    for (int i = 0; i < n && i < 8; ++i) {
+      Serial.printf("  (%d) %-20s [RSSI: %4d dBm, Ch: %2d]\n",
+                    i + 1, WiFi.SSID(i).c_str(), WiFi.RSSI(i), WiFi.channel(i));
+    }
+  }
+
+  // 2. Register multi-network APs
+  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+#ifdef WIFI_SSID_2
+  if (strlen(WIFI_SSID_2) > 0) wifiMulti.addAP(WIFI_SSID_2, WIFI_PASSWORD_2);
+#endif
+#ifdef WIFI_SSID_3
+  if (strlen(WIFI_SSID_3) > 0) wifiMulti.addAP(WIFI_SSID_3, WIFI_PASSWORD_3);
+#endif
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 35) {
-    delay(400);
+  const int maxAttempts = 40;
+  while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
+    delay(500);
     Serial.print(".");
     attempts++;
   }
@@ -151,7 +197,8 @@ void setupWiFi() {
     Serial.println(WiFi.localIP());
     Serial.printf("[WiFi] Stream URL: http://%s:%d/stream\n", WiFi.localIP().toString().c_str(), STREAM_SERVER_PORT);
   } else {
-    Serial.println("\n[WiFi] Initial hotspot connection timed out. Will auto-retry in loop...");
+    Serial.printf("\n[WiFi] Initial connection failed! Status: %s\n", getWiFiStatusString(WiFi.status()));
+    Serial.println("[WiFi] Will auto-retry in loop...");
   }
 }
 
@@ -336,9 +383,12 @@ void loop() {
     static unsigned long lastCamWifiRetry = 0;
     if (currentMillis - lastCamWifiRetry >= 8000) {
       lastCamWifiRetry = currentMillis;
-      Serial.println("[WiFi] Reconnecting to hotspot...");
-      WiFi.disconnect();
-      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      Serial.println("[WiFi] Reconnecting via WiFiMulti...");
+      if (wifiMulti.run(4000) != WL_CONNECTED) {
+        WiFi.disconnect(false);
+        delay(50);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      }
     }
   } else if (stream_httpd == NULL) {
     startCameraServer();
