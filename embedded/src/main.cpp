@@ -495,20 +495,31 @@ void setup() {
   Serial.println("  Firmware Version: 1.2.0");
   Serial.println("==========================================");
 
-  // 1. Initialize Relays (Default Safe State: White Light ON, UV Light OFF)
+  // 1. Initialize Relays & Perform Hardware Self-Test (Audible Click Verification)
   pinMode(RELAY_WHITE_LIGHT_PIN, OUTPUT);
   pinMode(RELAY_UV_LIGHT_PIN, OUTPUT);
   pinMode(RELAY_UV_LIGHT_PIN_ALT, OUTPUT);
 
-  // Always force UV to OFF after reset (both GPIO 27 and 25)
+  Serial.println("[Relays] Running Boot Hardware Self-Test...");
+  // Test Channel 1 (White)
+  digitalWrite(RELAY_WHITE_LIGHT_PIN, RELAY_STATE_ON);
+  delay(300);
+  digitalWrite(RELAY_WHITE_LIGHT_PIN, RELAY_STATE_OFF);
+  delay(200);
+
+  // Test Channel 2 (UV)
+  digitalWrite(RELAY_UV_LIGHT_PIN, RELAY_STATE_ON);
+  digitalWrite(RELAY_UV_LIGHT_PIN_ALT, RELAY_STATE_ON);
+  delay(300);
   digitalWrite(RELAY_UV_LIGHT_PIN, RELAY_STATE_OFF);
   digitalWrite(RELAY_UV_LIGHT_PIN_ALT, RELAY_STATE_OFF);
-  currentUvLight = false;
+  delay(200);
 
-  // Restore White Light to ON
+  // Settle into Default Safe State: White Light ON, UV Light OFF
   digitalWrite(RELAY_WHITE_LIGHT_PIN, RELAY_STATE_ON);
   currentWhiteLight = true;
-  Serial.println("[Relays] Initialized in Safe State: White ON, UV OFF (Pins 27 & 25 configured).");
+  currentUvLight = false;
+  Serial.println("[Relays] Self-test complete. Safe state active: White ON, UV OFF.");
 
   // 2. Initialize I2C LCD Display
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
@@ -563,4 +574,25 @@ void loop() {
 
   // 5. Update Local LCD Display (non-blocking timed state machine)
   updateLcdDisplay();
+
+  // 6. Serial Debug Command Listener (Allows instant manual testing via Serial Monitor)
+  // Send 'W' or 'w' to toggle White Light; 'U' or 'u' to toggle UV Light; 'T' or 't' for Relay Test Cycle
+  if (Serial.available() > 0) {
+    char ch = Serial.read();
+    if (ch == 'w' || ch == 'W') {
+      Serial.println("[SERIAL CMD] Toggle White Light requested.");
+      setLights(!currentWhiteLight, false);
+    } else if (ch == 'u' || ch == 'U') {
+      Serial.println("[SERIAL CMD] Toggle UV Light requested.");
+      setLights(false, !currentUvLight);
+    } else if (ch == 't' || ch == 'T') {
+      Serial.println("[SERIAL CMD] Running full relay cycle test...");
+      setLights(true, false);
+      delay(800);
+      setLights(false, true);
+      delay(800);
+      setLights(true, false);
+      Serial.println("[SERIAL CMD] Test cycle complete (White restored).");
+    }
+  }
 }
